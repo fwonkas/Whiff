@@ -93,7 +93,11 @@ Saved replays are parsed with [subtr-actor](https://github.com/rlrml/subtr-actor
 
 `npm run ship` runs `npm ci` and `desktop:dist`, then opens the release folder (`npm run ship:run` launches the installer instead).
 
-Pushing a tag like `v0.1.0` (matching `apps/desktop/package.json`), or running the workflow by hand, builds the installer on GitHub Actions and attaches it to a draft release for that version. Auto-update reads published releases, which only works while the repository is public.
+### Releases and updates
+
+`npm run release` tags the version in `apps/desktop/package.json` and pushes it (`npm run release -- patch`, `minor`, `major` or `1.2.3` bumps and commits the version first). It needs a clean, up-to-date `main`. The tag starts the "Desktop app" workflow on GitHub Actions: typecheck, tests, the installer, then a published release with the installer, its blockmap, `latest.yml` and the commit subjects since the previous tag as notes (commits are the changelog, so write their subjects for users). A tag that doesn't match the version fails the build before anything is uploaded. Running the workflow by hand from the Actions tab makes a draft release instead, a test build installed copies don't see.
+
+Installed copies use electron-updater: they check the latest published release at start and every 6 hours (and from the tray's **Check for updates**), download a newer version in the background (only the changed blocks, thanks to the blockmap), notify, and install it when Whiff quits. The installer isn't code-signed, so electron-updater doesn't check a signature. Installs from before 0.2.0 look for updates in the old repo, so they need one manual install of a release from fwonkas/Whiff.
 
 The app and tray icons are rendered from `apps/desktop/assets/icon.svg` by `apps/desktop/scripts/make-icons.mjs` (the tray adds a state dot) and committed. The dashboard's favicon, SVG icon and Apple touch icon are in `apps/web/public`.
 

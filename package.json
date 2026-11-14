@@ -25,6 +25,7 @@
     "desktop": "npm run build && npm run start -w @rl/desktop",
     "desktop:dist": "npm run build && npm run dist -w @rl/desktop",
     "ship": "node scripts/ship.mjs",
+    "release": "node scripts/release.mjs",
     "ship:run": "node scripts/ship.mjs --run"
   },
   "devDependencies": {
