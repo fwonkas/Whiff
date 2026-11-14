@@ -95,7 +95,7 @@ Saved replays are parsed with [subtr-actor](https://github.com/rlrml/subtr-actor
 
 Pushing a tag like `v0.1.0` (matching `apps/desktop/package.json`), or running the workflow by hand, builds the installer on GitHub Actions and attaches it to a draft release for that version. Auto-update reads published releases, which only works while the repository is public.
 
-The icons are drawn by `apps/desktop/scripts/make-icons.mjs` and committed.
+The app and tray icons are rendered from `apps/desktop/assets/icon.svg` by `apps/desktop/scripts/make-icons.mjs` (the tray adds a state dot) and committed. The dashboard's favicon, SVG icon and Apple touch icon are in `apps/web/public`.
 
 ## Commands
 
