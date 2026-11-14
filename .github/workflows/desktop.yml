@@ -1,0 +1,57 @@
+# Builds the Windows installer. Runs on a version tag (v0.1.0, matching
+# apps/desktop/package.json) or by hand from the Actions tab. Either way the
+# installer and the latest.yml that auto-update reads go on a draft GitHub
+# release for the version (Releases page; re-running a version replaces its
+# files). A manual run also tries a workflow artifact.
+name: Desktop app
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  # To delete older installer artifacts (below).
+  actions: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Build installer
+        working-directory: apps/desktop
+        run: node scripts/build.mjs && npx electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Manual runs only, as a convenience: the installer is on the draft
+      # release either way. Artifact storage can be full (quota hit again
+      # 2026-11-12 with one installer stored), so a failed upload doesn't fail
+      # the build.
+      - uses: actions/upload-artifact@v6
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        continue-on-error: true
+        with:
+          name: Whiff-Installer
+          path: apps/desktop/release/*.exe
+          retention-days: 14
+      # Each installer is ~120 MB and a private repo's artifact storage is small
+      # (it filled up on 2026-11-08): keep only the 3 newest.
+      - name: Delete older installers
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --paginate "repos/${{ github.repository }}/actions/artifacts?name=Whiff-Installer" -q '.artifacts[].id' \
+            | tail -n +4 \
+            | xargs -r -I{} gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/{}"

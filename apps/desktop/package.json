@@ -1,0 +1,82 @@
+{
+  "name": "@rl/desktop",
+  "productName": "Whiff",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Whiff: records your Rocket League games from the tray",
+  "author": "Joe Lillibridge",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/build.mjs && electron .",
+    "dist": "node scripts/build.mjs && electron-builder --win --x64 --publish never",
+    "release": "node scripts/build.mjs && electron-builder --win --x64 --publish always"
+  },
+  "devDependencies": {
+    "@rl/collector": "*",
+    "electron": "44.9.2",
+    "electron-builder": "26.17.0",
+    "electron-updater": "6.8.10"
+  },
+  "build": {
+    "appId": "dev.rlstatslab.desktop",
+    "productName": "Whiff",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web"
+      },
+      {
+        "from": "subtr",
+        "to": "subtr"
+      },
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": [
+          "tray-*.png",
+          "icon.png",
+          "splash.html",
+          "splash.jpg"
+        ]
+      }
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon-512.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "artifactName": "Whiff-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "fwonkas",
+        "repo": "Whiff"
+      }
+    ],
+    "extraMetadata": {
+      "name": "whiff"
+    }
+  }
+}

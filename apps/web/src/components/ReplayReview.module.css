@@ -1,0 +1,144 @@
+.section {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 22px;
+  overflow: hidden;
+}
+.toggle button {
+  min-height: var(--touch);
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.toggle button[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.lead {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+.lead select {
+  min-height: var(--touch);
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+}
+
+.moments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+.moment {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  min-height: calc(var(--touch) + 16px);
+}
+.moment[data-kind="goal-against"] .what strong {
+  color: var(--them);
+}
+.moment[data-kind="goal-for"] .what strong {
+  color: var(--us);
+}
+.clock {
+  color: var(--text-soft);
+}
+.what {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.watch {
+  min-height: var(--touch);
+  min-width: 88px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.watch:hover:not(:disabled) {
+  border-color: var(--us);
+}
+.watch:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.fetch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  font-size: 14px;
+}
+
+.status {
+  margin: 0;
+  min-height: 1.45em;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+.status {
+  margin: -4px 0 0;
+  font-size: 13px;
+}
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.head .title {
+  margin: 0;
+}

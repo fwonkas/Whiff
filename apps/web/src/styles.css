@@ -1,0 +1,277 @@
+/*
+ * Design tokens from the mockup. Colors mean "us" and "them", never blue and
+ * orange team, since I play on both. Results always carry a letter too, so
+ * color is never the only signal.
+ */
+:root {
+  --bg: #0e1116;
+  --surface: #161b22;
+  --surface-sunk: #12161c;
+  --surface-raised: #1e252e;
+  --border: #232a33;
+  --border-strong: #323b46;
+  --rule: #1e252e;
+  --text: #e6eaf0;
+  --text-muted: #aeb7c4;
+  --text-soft: #c9d1dc;
+  --us: #8ab8ff;
+  --them: #ffb066;
+  --win-bg: #173528;
+  --win-fg: #86e3a6;
+  --loss-bg: #3a1d1f;
+  --loss-fg: #ffa3a3;
+  --neutral-bg: #262d36;
+  --warn-bg: #1f1c14;
+  --warn-border: #4a3f22;
+  --warn-fg: #f2dfae;
+  --mvp-bg: #3a3112;
+  --mvp-fg: #f5d36b;
+  --us-hover: #b9d5ff;
+  --idle: #5b6573;
+  --backdrop: rgb(0 0 0 / 0.6);
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --touch: 44px;
+  --gutter: clamp(16px, 4vw, 32px);
+  --content: 1680px;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, monospace;
+
+  color-scheme: dark;
+}
+
+/* Light theme: the system's choice unless the settings pin dark, or pinned. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface-sunk: #eceff3;
+    --surface-raised: #e6eaf0;
+    --border: #d9dee5;
+    --border-strong: #bcc4cf;
+    --rule: #e4e8ed;
+    --text: #121820;
+    --text-muted: #556070;
+    --text-soft: #303a47;
+    --us: #1c63cc;
+    --us-hover: #124a9c;
+    --them: #b35300;
+    --win-bg: #d8f1e1;
+    --win-fg: #11632f;
+    --loss-bg: #fbe1e1;
+    --loss-fg: #9c1c1c;
+    --neutral-bg: #e3e7ed;
+    --warn-bg: #fff6dc;
+    --warn-border: #e7cd7f;
+    --warn-fg: #5e4700;
+  --mvp-bg: #fbedbd;
+  --mvp-fg: #6b4d00;
+    --idle: #8a94a3;
+    --backdrop: rgb(18 24 32 / 0.45);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-sunk: #eceff3;
+  --surface-raised: #e6eaf0;
+  --border: #d9dee5;
+  --border-strong: #bcc4cf;
+  --rule: #e4e8ed;
+  --text: #121820;
+  --text-muted: #556070;
+  --text-soft: #303a47;
+  --us: #1c63cc;
+  --us-hover: #124a9c;
+  --them: #b35300;
+  --win-bg: #d8f1e1;
+  --win-fg: #11632f;
+  --loss-bg: #fbe1e1;
+  --loss-fg: #9c1c1c;
+  --neutral-bg: #e3e7ed;
+  --warn-bg: #fff6dc;
+  --warn-border: #e7cd7f;
+  --warn-fg: #5e4700;
+  --mvp-bg: #fbedbd;
+  --mvp-fg: #6b4d00;
+  --idle: #8a94a3;
+  --backdrop: rgb(18 24 32 / 0.45);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * The window itself never scrolls: the app shell fills it, the header stays,
+ * and each page scrolls inside the content area, or (Sessions) inside its own
+ * list.
+ */
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--us);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--us-hover);
+}
+:focus-visible {
+  outline: 2px solid var(--us);
+  outline-offset: 2px;
+}
+
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  color: var(--text-muted);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.page {
+  max-width: var(--content);
+  margin: 0 auto;
+  padding: 28px var(--gutter) 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+/* Result pill: W / L / Left, always with the letter. */
+.result {
+  display: inline-block;
+  min-width: 36px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+}
+.result[data-outcome="win"] {
+  background: var(--win-bg);
+  color: var(--win-fg);
+}
+.result[data-outcome="loss"] {
+  background: var(--loss-bg);
+  color: var(--loss-fg);
+}
+.result[data-outcome="abandoned"],
+.result[data-outcome="none"] {
+  background: var(--neutral-bg);
+  color: var(--text-soft);
+}
+
+/* MVP badge: the word itself, so color isn't the only signal. */
+.mvp {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--mvp-bg);
+  color: var(--mvp-fg);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Overtime badge, like MVP but neutral. */
+.ot {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--neutral-bg);
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Filter chips: links that set search params. One scrolling row on phones. */
+/* The hidden attribute always wins over a component's display rule. */
+[hidden] {
+  display: none !important;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 14px;
+  border-radius: 22px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-soft);
+  white-space: nowrap;
+  font-size: 14px;
+}
+.chip[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.chip[aria-current="page"] {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+@media (max-width: 700px) {
+  .chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: calc(-1 * var(--gutter));
+    padding-inline: var(--gutter);
+  }
+}
+
+.notice {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  color: var(--warn-fg);
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-size: 14px;
+}

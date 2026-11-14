@@ -1,0 +1,98 @@
+.wrap {
+  max-width: var(--content);
+  margin: 0 auto;
+  padding: 20px var(--gutter) 0;
+}
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 14px 18px;
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--us);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  font-size: 14px;
+}
+
+.text {
+  margin: 0;
+  flex: 1 1 260px;
+}
+
+.platform {
+  color: var(--text-soft);
+  font-weight: 400;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.primary,
+.secondary {
+  min-height: var(--touch);
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.primary {
+  border: 1px solid var(--us);
+  background: var(--us);
+  color: var(--bg);
+}
+.primary:hover:not(:disabled) {
+  background: var(--us-hover);
+  border-color: var(--us-hover);
+}
+.secondary {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+.secondary:hover:not(:disabled) {
+  border-color: var(--us);
+  color: var(--us);
+}
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pick {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-soft);
+}
+.hint a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.failure {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--loss-fg);
+}

@@ -1,0 +1,41 @@
+/* The "?" sits inline with a label; its hit area is bigger than it looks. */
+.button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -7px -6px -7px -2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.button:hover,
+.button:focus-visible {
+  color: var(--us);
+}
+
+.tip {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.tip p {
+  margin: 0;
+}
+.tip p + p {
+  margin-top: 8px;
+}

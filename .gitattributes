@@ -1,0 +1,3 @@
+# Store text with LF in the repo; tools on Windows may write CRLF.
+* text=auto eol=lf
+*.gz binary

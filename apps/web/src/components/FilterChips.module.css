@@ -1,0 +1,83 @@
+/* "Other": a chip that opens a list of the less common modes. */
+.other {
+  gap: 6px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.other:hover {
+  color: var(--text);
+}
+.menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.menu:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: var(--touch);
+  padding: 0 12px;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14px;
+}
+.option:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.option[aria-current="page"] {
+  font-weight: 600;
+}
+
+/* The date filter's form. */
+.dates {
+  gap: 8px;
+  padding: 10px;
+}
+.dateField {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.dateField input {
+  min-height: var(--touch);
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.option:disabled,
+.option[aria-disabled="true"] {
+  color: var(--text-muted);
+  background: none;
+  cursor: default;
+}
+
+/* Sessions: every filter on one row above the list, even beside the cards on a laptop. */
+.menusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.menusRow :global(.chip) {
+  padding-inline: 11px;
+}

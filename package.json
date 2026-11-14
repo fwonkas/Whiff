@@ -1,0 +1,42 @@
+{
+  "name": "whiff",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local Rocket League stats tracker built on the game's Stats API",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n collector,web -c blue,magenta \"npm run dev -w @rl/collector\" \"npm run dev -w @rl/web\"",
+    "build": "npm run build -w @rl/web",
+    "collect": "npm run start -w @rl/collector",
+    "ingest": "npm run ingest -w @rl/collector --",
+    "mock": "npm run start -w @rl/mock-game --",
+    "replay-fixture": "tsx apps/collector/src/subtr/fixture-cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/desktop/tsconfig.json",
+    "desktop": "npm run build && npm run start -w @rl/desktop",
+    "desktop:dist": "npm run build && npm run dist -w @rl/desktop",
+    "ship": "node scripts/ship.mjs",
+    "ship:run": "node scripts/ship.mjs --run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "concurrently": "^10.0.6"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "electron@44.9.2": true
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+data/
+*.db
+*.db-*
+rl-stats-lab.config.json
+whiff.config.json
+.DS_Store
+dist/
+apps/desktop/dist/
+apps/desktop/release/
+apps/desktop/subtr/

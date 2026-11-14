@@ -1,0 +1,410 @@
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  /* Smaller cards fill the gap a two-column card leaves. */
+  grid-auto-flow: dense;
+  gap: 12px;
+}
+.cardItem {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.recordSub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+/* The per-match table takes two columns of the card grid (a whole row on a phone). */
+.cardItem[data-wide] {
+  grid-column: span 2;
+}
+.perMatch {
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.perMatch th,
+.perMatch td {
+  padding: 2px 16px 2px 0;
+  text-align: right;
+  font-weight: 400;
+}
+.perMatch th[scope="row"] {
+  text-align: left;
+  color: var(--text-soft);
+}
+.perMatch thead th {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.cardLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+/* From replays: the 50/50 and race totals under the table, one per line. */
+.replayTotals {
+  display: grid;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+.replayTotals strong {
+  color: var(--text);
+  font-weight: 500;
+}
+/* The lines under a card's number, one fact each. */
+.subLine {
+  display: block;
+}
+.perMatch [data-narrow-only] {
+  display: none;
+}
+@media (max-width: 600px) {
+  .perMatch [data-wide-only] {
+    display: none;
+  }
+  .perMatch [data-narrow-only] {
+    display: table-cell;
+  }
+}
+.cardValue {
+  font-size: 26px;
+  font-weight: 500;
+}
+/* Solo · With teammates: one rate per line, the name on the left and the rate on the right. */
+.splitValue {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.splitValue > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
+}
+.splitLabel {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+
+/*
+ * Wide and tall enough: the page fills the content area, the top (title,
+ * cards, filters) stays, and the list scrolls inside its card.
+ */
+.page {
+  --list-head: 44px;
+  height: 100%;
+  min-height: 0;
+  padding-bottom: 20px;
+}
+
+/*
+ * Stacked by default (cards, then filters and the list). Wide windows: the
+ * list on the left with the filters over it, the cards in a column on the
+ * right, so the list gets the height.
+ */
+.columns {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 24px;
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.main {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+@media (min-width: 1200px) {
+  .columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    align-items: start;
+  }
+  .main {
+    height: 100%;
+    gap: 16px;
+  }
+  .side {
+    max-height: 100%;
+    overflow-y: auto;
+  }
+  .side .cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.list:focus {
+  outline: none;
+}
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.day {
+  position: sticky;
+  top: var(--list-head);
+  z-index: 1;
+  margin: 0;
+  padding: 16px 20px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-sunk);
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+.day > span {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/*
+ * One row markup, two layouts. Wide: a table-like grid with a header.
+ * Narrow: a two-line card. Only grid-template-areas changes.
+ */
+.row {
+  display: grid;
+  /* The visible columns set these (lib/columns.ts); the fallback is everything. */
+  grid-template-columns: var(--cols, 84px 96px minmax(140px, 1.4fr) 170px 64px 150px 64px 150px minmax(90px, 1fr));
+  grid-template-areas: var(--areas, "time playlist arena result score stats touches share notes");
+  align-items: center;
+  column-gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--rule);
+  color: var(--text);
+  font-size: 14px;
+  min-height: var(--touch);
+}
+/* The whole item lights up, replay control included. */
+.item:hover {
+  background: var(--surface-raised);
+}
+a.row:hover {
+  color: var(--text);
+}
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: var(--list-head);
+  min-height: 0;
+  padding-block: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 0;
+}
+
+.time { grid-area: time; white-space: nowrap; }
+.playlist { grid-area: playlist; white-space: nowrap; }
+.arena { grid-area: arena; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result { grid-area: result; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+/* Each list item: the row (a link to the match) and, beside it, the replay control. */
+.item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  align-items: center;
+  border-top: 1px solid var(--rule);
+}
+/* No Replay column (hidden while the game isn't running, by setting). */
+.list[data-no-replay] .item {
+  grid-template-columns: minmax(0, 1fr);
+}
+.list[data-no-replay] .head {
+  padding-right: 20px;
+}
+.item > .row {
+  border-top: 0;
+}
+.replay {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 20px;
+}
+.head .replayHead {
+  position: absolute;
+  right: 20px;
+  width: 96px;
+}
+.head {
+  /* Sticky is positioned, so the Replay heading can sit over the last column. */
+  padding-right: 148px;
+}
+.score { grid-area: score; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.line { grid-area: stats; display: flex; gap: 10px; justify-content: flex-end; white-space: nowrap; }
+.stat abbr {
+  text-decoration: none;
+  margin-left: 2px;
+  font-size: 12px;
+  font-family: var(--font);
+}
+.touches { grid-area: touches; text-align: right; }
+.share { grid-area: share; display: flex; align-items: center; gap: 10px; }
+.notes { grid-area: notes; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.bar {
+  width: 72px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--neutral-bg);
+  overflow: hidden;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--us);
+}
+
+/* A narrower list (beside the cards): tighter columns, then no Notes. */
+.list {
+  container: matches / inline-size;
+}
+@container matches (max-width: 1060px) {
+  .row {
+    grid-template-columns: var(--cols-compact);
+    grid-template-areas: var(--areas-compact);
+  }
+  .bar {
+    width: 48px;
+  }
+  .item {
+    grid-template-columns: minmax(0, 1fr) 120px;
+  }
+}
+@container matches (max-width: 940px) {
+  .row {
+    grid-template-columns: var(--cols-tight);
+    grid-template-areas: var(--areas-tight);
+  }
+  .notes {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .head {
+    display: none;
+  }
+  .row {
+    column-gap: 10px;
+    grid-template-columns: auto 1fr auto 44px;
+    grid-template-areas:
+      "time playlist result score"
+      "stats stats share .";
+    row-gap: 6px;
+    padding: 12px var(--gutter);
+  }
+  .line { justify-content: flex-start; color: var(--text-soft); }
+  /* Room for the OT badge, so W/L pills line up whether or not a row has it. */
+  .result { min-width: 118px; }
+  .item {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .replay {
+    padding-right: var(--gutter);
+  }
+  /* Too narrow for the touch share bar beside the stats: the number is enough. */
+  .bar {
+    display: none;
+  }
+  .share {
+    justify-content: flex-end;
+  }
+  /* On a phone the score column is just the MVP badge, after the result. */
+  .score > :global(.num) {
+    display: none;
+  }
+  .arena,
+  .touches,
+  .notes {
+    display: none;
+  }
+  .day {
+    padding-inline: var(--gutter);
+  }
+}
+
+.end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.more {
+  align-self: center;
+  min-height: var(--touch);
+  padding: 0 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+/*
+ * Phones and short windows: too little room to hold the top still, so the
+ * whole page scrolls in the content area instead, with the same sticky
+ * headings (overflow: clip keeps the rounded corners without making the card
+ * a scroller of its own, which would stop them sticking).
+ */
+@media (max-width: 860px), (max-height: 640px) {
+  .page {
+    height: auto;
+    padding-bottom: 48px;
+  }
+  .list {
+    flex: none;
+    overflow: clip;
+  }
+}
+@media (max-width: 860px) {
+  .page {
+    --list-head: 0px;
+  }
+  .end {
+    padding-inline: var(--gutter);
+  }
+}

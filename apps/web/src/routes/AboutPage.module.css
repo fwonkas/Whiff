@@ -1,0 +1,25 @@
+.card {
+  max-width: 68ch;
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  display: grid;
+  gap: 12px;
+  line-height: 1.55;
+}
+.card p {
+  margin: 0;
+}
+.name {
+  margin: 0;
+  font-size: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.version {
+  font-size: 14px;
+  font-weight: 400;
+}

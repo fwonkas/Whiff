@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'" />
+    <title>Whiff</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0e1116;
+        overflow: hidden;
+        position: relative;
+      }
+      /* 1280×720, shown at half size or less so it's sharp on a scaled display. */
+      img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        -webkit-user-drag: none;
+        user-select: none;
+      }
+      /*
+       * Loading, in the gap between "WHIFF" (ends at 68% of the height) and the
+       * bottom line (starts at 90%): a white bar with a dark edge, like the
+       * lettering, with a piece sliding across. CSS only: scripts are off here.
+       */
+      .loading {
+        position: absolute;
+        left: 50%;
+        top: 79%;
+        width: 34vw;
+        height: 3.9vh;
+        min-height: 10px;
+        transform: translate(-50%, -50%);
+        box-sizing: border-box;
+        border: 2px solid rgb(0 0 0 / 0.85);
+        border-radius: 999px;
+        background: rgb(0 0 0 / 0.45);
+        overflow: hidden;
+      }
+      .loading::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 38%;
+        border-radius: 999px;
+        background: #fff;
+        animation: slide 1.15s ease-in-out infinite;
+      }
+      @keyframes slide {
+        from {
+          transform: translateX(-105%);
+        }
+        to {
+          transform: translateX(270%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <img src="splash.jpg" alt="" />
+    <div class="loading" role="progressbar" aria-label="Loading"></div>
+  </body>
+</html>

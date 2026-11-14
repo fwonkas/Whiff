@@ -1,0 +1,160 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.header {
+  flex: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-sunk);
+}
+
+.bar {
+  max-width: var(--content);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  min-height: 64px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 32px;
+}
+
+.brand {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+.navLink[aria-current="page"] {
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* "Play N" sits just before the status, both at the right. */
+.play {
+  margin-left: auto;
+}
+.play ~ .status {
+  margin-left: 0;
+}
+.status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--idle);
+}
+.dot[data-on="true"] {
+  background: var(--win-fg);
+}
+.dot[data-busy="true"] {
+  background: var(--us);
+}
+
+/* "Game not running" becomes a button when the desktop app can launch the game. */
+.launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  padding: 0 6px 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 22px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.launch:hover {
+  border-color: var(--us);
+}
+.launchAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 16px;
+  background: var(--surface-raised);
+  color: var(--us);
+  font-weight: 600;
+}
+
+.failure {
+  color: var(--loss-fg);
+}
+
+.gear {
+  display: inline-grid;
+  place-items: center;
+  width: var(--touch);
+  height: var(--touch);
+  margin-right: -10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.gear:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+/* On phones the status moves under the nav instead of squeezing it. */
+@media (max-width: 700px) {
+  .bar {
+    padding-block: 8px;
+  }
+  /* Phones: brand and gear on the first line, then the tabs, then the status. */
+  .gear {
+    order: 1;
+    margin-left: auto;
+  }
+  .nav {
+    order: 2;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .play {
+    order: 4;
+    margin-left: 0;
+  }
+  .status {
+    order: 3;
+    margin-left: 0;
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+}
