@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createApi } from "../src/api.ts";
-import { BallchasingClient, ballchasingDate, candidatesFor, fetchMissingReplays, ReplayUploader, uploadKind, type BallchasingListItem, type UploadableReplay, type MissingReplay } from "../src/ballchasing.ts";
+import { BallchasingClient, ballchasingDate, candidatesFor, fetchMissingReplays, ReplayUploader, replayTitle, uploadKind, type BallchasingListItem, type UploadableReplay, type MissingReplay } from "../src/ballchasing.ts";
 import { StatsDb } from "../src/db.ts";
 import { DEFAULT_UPLOAD_RULES } from "@rl/api-contract";
 import { listSavedReplays } from "../src/replay-files.ts";
@@ -115,8 +115,9 @@ describe("uploading saved replays", () => {
   const now = ended + 3_600_000;
 
   /** A fake ballchasing for uploads: my uploads list, the quota, and what was posted. */
-  function setup(opts: { mine?: BallchasingListItem[]; used?: number; max?: number; status?: number } = {}) {
+  function setup(opts: { mine?: BallchasingListItem[]; used?: number; max?: number; status?: number; patchStatus?: number } = {}) {
     const posted: { visibility: string | null; group: string | null; name: string | null }[] = [];
+    const titled: { id: string; body: unknown }[] = [];
     const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(String(input));
       if (url.pathname === "/api/") return Response.json({ name: "me", quota: { uploads_in_24h: { used: opts.used ?? 0, max: opts.max ?? 100 } } });
@@ -128,13 +129,18 @@ describe("uploading saved replays", () => {
         if (opts.status) return Response.json({ error: "nope" }, { status: opts.status });
         return Response.json({ id: `bc-${posted.length}`, location: "x" }, { status: 201 });
       }
+      const patch = url.pathname.match(/^\/api\/replays\/([^/]+)$/);
+      if (patch && init?.method === "PATCH") {
+        titled.push({ id: patch[1]!, body: JSON.parse(String(init.body)) });
+        return new Response(null, { status: opts.patchStatus ?? 204 });
+      }
       return new Response("not found", { status: 404 });
     }) as typeof fetch;
     const client = new BallchasingClient("key", fetchImpl);
     const records: { replayId: string; id: string | null; how: string }[] = [];
     let on = true;
     const replays: UploadableReplay[] = [
-      { replayId: A, path: "a", mtimeMs: ended, matchEndedAt: ended, kind: "ranked" },
+      { replayId: A, path: "a", mtimeMs: ended, matchEndedAt: ended, kind: "ranked", title: "Ranked Doubles 2026-11-14 20:13" },
       { replayId: B, path: "b", mtimeMs: now - 5_000, matchEndedAt: now - 10_000, kind: "ranked" }, // still being written
       { replayId: "C".repeat(32), path: "c", mtimeMs: ended, matchEndedAt: ended, kind: "tournament" }, // tournaments are off here
       { replayId: "E".repeat(32), path: "e", mtimeMs: ended, matchEndedAt: ended, kind: null }, // offline
@@ -153,7 +159,7 @@ describe("uploading saved replays", () => {
       read: () => new Uint8Array([1, 2, 3]),
       now: () => now,
     });
-    return { uploader, posted, records, off: () => (on = false) };
+    return { uploader, posted, records, titled, off: () => (on = false) };
   }
 
   it("uploads settled replays of the kinds that are on, with their visibility and group", async () => {
@@ -173,10 +179,25 @@ describe("uploading saved replays", () => {
     expect(records).toEqual([{ replayId: A, id: "bc-mine", how: "already" }]);
   });
 
-  it("records a duplicate ballchasing already had", async () => {
-    const { uploader, records } = setup({ status: 409 });
+  it("titles a new upload from the match: the playlist and when it started", async () => {
+    const { uploader, titled } = setup();
+    expect(await uploader.tick()).toBe("uploaded");
+    expect(titled).toEqual([{ id: "bc-1", body: { title: "Ranked Doubles 2026-11-14 20:13" } }]);
+  });
+
+  it("keeps the upload when the new title is refused", async () => {
+    const { uploader, records, titled } = setup({ patchStatus: 500 });
+    expect(await uploader.tick()).toBe("uploaded");
+    expect(titled).toHaveLength(1);
+    expect(records).toEqual([{ replayId: A, id: "bc-1", how: "uploaded" }]);
+    expect(uploader.status().waiting).toBeNull();
+  });
+
+  it("records a duplicate ballchasing already had, and leaves its title alone", async () => {
+    const { uploader, records, titled } = setup({ status: 409 });
     expect(await uploader.tick()).toBe("uploaded");
     expect(records).toEqual([{ replayId: A, id: "bc-dup", how: "duplicate" }]);
+    expect(titled).toEqual([]);
     expect(uploader.status().uploaded).toBe(0);
   });
 
@@ -200,6 +221,19 @@ describe("uploading saved replays", () => {
     expect(await uploader.tick()).toBe("idle");
     expect(uploader.status()).toEqual({ enabled: false, pending: 0, uploaded: 0, waiting: null });
     expect(posted).toEqual([]);
+  });
+});
+
+describe("ballchasing titles", () => {
+  const at = new Date(2026, 10, 14, 20, 13, 45).getTime(); // this PC's time zone
+  it("are the playlist and the match's start, to the minute, in local time", () => {
+    expect(replayTitle({ playlistId: 11, kind: "ranked", startedAt: at })).toBe("Ranked Doubles 2026-11-14 20:13");
+    expect(replayTitle({ playlistId: 15, kind: "casual", startedAt: at })).toBe("Casual Snow Day 2026-11-14 20:13");
+  });
+  it("fall back to the kind of match without a known playlist, and to none without a start", () => {
+    expect(replayTitle({ playlistId: null, kind: "ranked", startedAt: at })).toBe("Online Match 2026-11-14 20:13");
+    expect(replayTitle({ playlistId: null, kind: "tournament", startedAt: at })).toBe("Tournament 2026-11-14 20:13");
+    expect(replayTitle({ playlistId: 11, kind: "ranked", startedAt: null })).toBeNull();
   });
 });
 

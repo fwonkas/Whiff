@@ -287,6 +287,14 @@ export class StatsDb {
     return new Map(rows.map((r) => [r.guid.toUpperCase(), r.playlistId]));
   }
 
+  /** When each match started, by GUID (upper case). Matches only: a playback's start is when it was watched. */
+  matchStartsByGuid(): Map<string, number> {
+    const rows = this.db
+      .prepare("SELECT match_guid AS guid, MIN(started_at) AS startedAt FROM sessions WHERE kind = 'match' AND match_guid IS NOT NULL GROUP BY UPPER(match_guid)")
+      .all() as { guid: string; startedAt: number }[];
+    return new Map(rows.map((r) => [r.guid.toUpperCase(), r.startedAt]));
+  }
+
   /** Match GUIDs of matches deleted in the app. */
   deletedGuids(): Set<string> {
     const rows = this.db.prepare("SELECT key FROM deleted_matches WHERE key LIKE 'guid:%'").all() as { key: string }[];

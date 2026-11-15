@@ -13,7 +13,7 @@ import { StatsDb } from "./db.ts";
 import { compressRawLogs, RawLogWriter } from "./recording.ts";
 import { StatsService } from "./service.ts";
 import { Backfill, BACKFILL_RECORDED_SPEED, BACKFILL_SPEED, type BackfillProgress } from "./backfill.ts";
-import { BallchasingClient, BallchasingError, fetchMissingReplays, ReplayUploader, uploadKind, type FetchOutcome, type FetchProgress } from "./ballchasing.ts";
+import { BallchasingClient, BallchasingError, fetchMissingReplays, ReplayUploader, replayTitle, uploadKind, type FetchOutcome, type FetchProgress } from "./ballchasing.ts";
 import { MeDetector } from "./me-detector.ts";
 import { DEFAULT_REPLAY_LEAD_SECONDS, ReplayRemote } from "./replay-remote.ts";
 import { listSavedReplays, matchHistoryRisk, planBackfill, type BackfillPlan, type MatchHistoryRisk } from "./replay-files.ts";
@@ -228,9 +228,17 @@ export async function startCollector(opts: CollectorOptions): Promise<RunningCol
     replays: () => {
       const deleted = db.deletedGuids();
       const playlists = db.playlistsByGuid();
+      const starts = db.matchStartsByGuid();
       return listSavedReplays(replayDirs)
         .filter((r) => !r.matchGuid || !deleted.has(r.matchGuid))
-        .map((r) => ({ ...r, kind: uploadKind(r.matchType, r.matchGuid ? (playlists.get(r.matchGuid.toUpperCase()) ?? null) : null) }));
+        .map((r) => {
+          const guid = r.matchGuid?.toUpperCase() ?? null;
+          const playlistId = guid ? (playlists.get(guid) ?? null) : null;
+          const kind = uploadKind(r.matchType, playlistId);
+          // The recorded start, else the header's end less the time played (a guess that includes any pauses).
+          const startedAt = (guid && starts.get(guid)) || (r.matchEndedAt !== null && r.seconds !== null ? r.matchEndedAt - r.seconds * 1000 : null);
+          return { ...r, kind, title: replayTitle({ playlistId, kind, startedAt }) };
+        });
     },
     known: () => db.onBallchasing(),
     record: (replayId, id, how) => {

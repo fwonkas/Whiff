@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import type { UploadKind, UploadRules, UploadVisibility } from "@rl/api-contract";
-import { isCasual } from "@rl/schema";
+import { isCasual, PLAYLISTS } from "@rl/schema";
 import { join } from "node:path";
 import { readReplayHeader, replaySummary } from "./replay-header.ts";
 
@@ -109,6 +109,16 @@ export class BallchasingClient {
   async matchGuid(id: string): Promise<string | null> {
     const body = (await (await this.request(`/replays/${encodeURIComponent(id)}`)).json()) as { match_guid?: string };
     return typeof body.match_guid === "string" && body.match_guid ? body.match_guid.toUpperCase() : null;
+  }
+
+  /** Change a replay's title (PATCH /replays/{id}); only on my own uploads. */
+  async setTitle(id: string, title: string): Promise<void> {
+    const res = await this.fetchImpl(`${this.base}/replays/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { Authorization: this.token, "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) throw new BallchasingError(res.status, `ballchasing answered ${res.status} to the new title`);
   }
 
   async download(id: string): Promise<Uint8Array> {
@@ -246,6 +256,24 @@ export interface UploadableReplay {
   mtimeMs: number;
   matchEndedAt: number | null;
   kind: UploadKind | null;
+  /** The title to give it on ballchasing instead of the name typed when saving it (replayTitle). */
+  title?: string | null;
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * A ballchasing title from the match, in place of whatever was typed when
+ * saving it ("game"): the playlist and when the match started, in this PC's
+ * time zone, e.g. "Ranked Doubles 2026-11-14 20:13". Without a known playlist,
+ * the kind of match; without a start, null (the replay keeps its own name).
+ */
+export function replayTitle(m: { playlistId: number | null; kind: UploadKind | null; startedAt: number | null }): string | null {
+  if (m.startedAt === null) return null;
+  const known = m.playlistId !== null ? PLAYLISTS[m.playlistId]?.name : undefined;
+  const name = known ?? (m.kind === "tournament" ? "Tournament" : m.kind === "private" ? "Private Match" : "Online Match");
+  const d = new Date(m.startedAt);
+  return `${name} ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export interface UploadStatus {
@@ -354,6 +382,11 @@ export class ReplayUploader {
       const r = await client.upload(this.deps.read(next.path), `${next.replayId}.replay`, rule.visibility, rule.group);
       this.deps.record(next.replayId, r.id, r.duplicate ? "duplicate" : "uploaded");
       if (!r.duplicate) this.uploaded++;
+      // Only a new upload is mine to retitle (a duplicate may be someone else's, or titled by hand).
+      // A failed retitle doesn't undo the upload: it's logged and left.
+      if (!r.duplicate && next.title) {
+        await client.setTitle(r.id, next.title).catch((e) => this.deps.log?.(`ballchasing: couldn't set the title of ${r.id}: ${String(e)}`));
+      }
       this.deps.log?.(`ballchasing: ${r.duplicate ? "already had" : "uploaded"} ${next.replayId}`);
       this.waiting = null;
       return "uploaded";

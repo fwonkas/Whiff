@@ -98,7 +98,7 @@ The dashboard is a web page, served by Whiff on your PC at `http://localhost:492
 
 ### ballchasing.com
 
-With an API key from [ballchasing.com/upload](https://ballchasing.com/upload) (Settings → Ballchasing), Whiff uploads your saved replays, one a minute, newest first, without sending one twice. By default ranked and tournament matches upload as **public**, private matches as private and casual matches not at all; change that, or add a ballchasing group, per kind of match. A match Whiff didn't record counts as ranked until playing its replay through shows otherwise. With the key, Whiff can also download replays you uploaded but didn't save in the game.
+With an API key from [ballchasing.com/upload](https://ballchasing.com/upload) (Settings → Ballchasing), Whiff uploads your saved replays, one a minute, newest first, without sending one twice, and titles each one on ballchasing by its playlist and start time ("Ranked Doubles 2026-11-14 20:13") instead of the name you typed when saving it. By default ranked and tournament matches upload as **public**, private matches as private and casual matches not at all; change that, or add a ballchasing group, per kind of match. A match Whiff didn't record counts as ranked until playing its replay through shows otherwise. With the key, Whiff can also download replays you uploaded but didn't save in the game.
 
 ## Updating
 

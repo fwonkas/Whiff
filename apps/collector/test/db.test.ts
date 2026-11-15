@@ -108,6 +108,10 @@ describe("matches from saved replays", () => {
     for (const s of skipped) expect(playlists.get(s.matchGuid!.toUpperCase())).toBe(s.playlistId);
     expect(skipped.every((s) => isCasual(s.playlistId))).toBe(true);
     for (const s of ranked) expect(playlists.get(s.matchGuid!.toUpperCase())).toBe(10);
+    // When each kept match started, for its ballchasing title; casual ones left out have no start.
+    const starts = db.matchStartsByGuid();
+    for (const s of ranked) expect(starts.get(s.matchGuid!.toUpperCase())).toBe(s.startedAt);
+    for (const s of skipped) expect(starts.has(s.matchGuid!.toUpperCase())).toBe(false);
     // Turning casual on doesn't forget them (unlike skippedGuids).
     db.setRecordCasual(true);
     expect(db.playlistsByGuid().size).toBe(playlists.size);
