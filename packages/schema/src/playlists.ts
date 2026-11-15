@@ -25,6 +25,12 @@ export const PLAYLISTS: Record<
   /** Seen 2026-11-13 (Joe: a casual Snow Day match); was "Unknown playlist" until then. */
   15: { name: "Casual Snow Day", mode: "match", teamSize: 3, ranked: false, casual: true, nonStandard: true },
   6: { name: "Private Match", mode: "match", ranked: false, nonStandard: true },
+  /**
+   * Seen 2026-11-15 (Joe: "Honor Duel"): a limited-time 1v1, teams named
+   * Challenger and Defender; was "Unknown playlist". Unranked, but not marked
+   * casual: kept whatever the casual setting says, like other extra modes.
+   */
+  53: { name: "Honor Duel", mode: "match", teamSize: 1, ranked: false, nonStandard: true },
   9: { name: "Freeplay", mode: "freeplay" },
   /** Freeplay you start from the menu with your party online (2026-11-10): grey teams, no clock. Practice, not a match. */
   73: { name: "Online Freeplay", mode: "freeplay" },

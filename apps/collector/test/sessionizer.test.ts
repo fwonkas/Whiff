@@ -352,6 +352,14 @@ describe("casual matches", () => {
     expect(PLAYLISTS[15]?.name).toBe("Casual Snow Day");
   });
 
+  it("Honor Duel (playlist 53, a limited-time 1v1) is kept with casual off, as an extra mode (2026-11-15)", async () => {
+    const { sessions, skipped } = await ingestRecording(fixture("honor-duel"), { ...config, recordCasual: false });
+    expect(skipped).toEqual([]);
+    const [m] = sessions.filter((s) => s.kind === "match");
+    expect([m!.playlistId, m!.teamSize, m!.myTeam, m!.scoreBlue, m!.scoreOrange, m!.outcome]).toEqual([53, 1, 1, 4, 2, "loss"]);
+    expect(PLAYLISTS[53]).toMatchObject({ name: "Honor Duel", nonStandard: true });
+  });
+
   it("left out, they're reported, so their replays aren't played through", async () => {
     const { skipped } = await ingestRecording(fixture("casual-3s"), { ...config, recordCasual: false });
     const on = (await ingestRecording(fixture("casual-3s"), config)).sessions.filter((s) => s.kind === "match");
