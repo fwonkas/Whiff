@@ -26,8 +26,8 @@ export type ReplayColumn = (typeof REPLAY_COLUMNS)[number];
 export const DEFAULT_REPLAY_COLUMNS: ReplayColumn[] = ["when", "playlist", "result", "status"];
 
 /** Kinds of match whose saved replays can upload to ballchasing, each with its own settings. */
-/** "online": ranked and casual matchmaking alike. */
-export const UPLOAD_KINDS = ["online", "tournament", "private"] as const;
+/** Ranked and casual matchmaking (both "Online" in a replay's header), tournaments and private matches. */
+export const UPLOAD_KINDS = ["ranked", "casual", "tournament", "private"] as const;
 export type UploadKind = (typeof UPLOAD_KINDS)[number];
 export const UploadVisibility = z.enum(["public", "unlisted", "private"]);
 export type UploadVisibility = z.infer<typeof UploadVisibility>;
@@ -38,7 +38,8 @@ export interface UploadRule {
   group: string | null;
 }
 export const DEFAULT_UPLOAD_RULES: Record<UploadKind, UploadRule> = {
-  online: { enabled: true, visibility: "public", group: null },
+  ranked: { enabled: true, visibility: "public", group: null },
+  casual: { enabled: false, visibility: "public", group: null },
   tournament: { enabled: true, visibility: "public", group: null },
   private: { enabled: true, visibility: "private", group: null },
 };
@@ -50,11 +51,27 @@ const GroupId = z
   .pipe(z.string().regex(/^[A-Za-z0-9_-]{1,100}$/, "a group ID is letters, digits, - and _ (or paste the group's link)"));
 const ruleSchema = (d: UploadRule) =>
   z.object({ enabled: z.boolean().default(d.enabled), visibility: UploadVisibility.default(d.visibility), group: GroupId.nullable().default(d.group) });
-export const UploadRules = z.object({
-  online: ruleSchema(DEFAULT_UPLOAD_RULES.online).default(DEFAULT_UPLOAD_RULES.online),
-  tournament: ruleSchema(DEFAULT_UPLOAD_RULES.tournament).default(DEFAULT_UPLOAD_RULES.tournament),
-  private: ruleSchema(DEFAULT_UPLOAD_RULES.private).default(DEFAULT_UPLOAD_RULES.private),
-});
+/**
+ * Before 0.2.3 one "online" rule covered ranked and casual. A settings file
+ * that still has it: ranked takes it, and casual takes its visibility and
+ * group but starts off. Each new rule's own saved values win.
+ */
+function splitOnlineRule(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || !("online" in raw)) return raw;
+  const { online, ...rest } = raw as Record<string, unknown>;
+  if (!online || typeof online !== "object") return rest;
+  const obj = (v: unknown) => (v && typeof v === "object" ? v : {});
+  return { ...rest, ranked: { ...online, ...obj(rest.ranked) }, casual: { ...online, enabled: false, ...obj(rest.casual) } };
+}
+export const UploadRules = z.preprocess(
+  splitOnlineRule,
+  z.object({
+    ranked: ruleSchema(DEFAULT_UPLOAD_RULES.ranked).default(DEFAULT_UPLOAD_RULES.ranked),
+    casual: ruleSchema(DEFAULT_UPLOAD_RULES.casual).default(DEFAULT_UPLOAD_RULES.casual),
+    tournament: ruleSchema(DEFAULT_UPLOAD_RULES.tournament).default(DEFAULT_UPLOAD_RULES.tournament),
+    private: ruleSchema(DEFAULT_UPLOAD_RULES.private).default(DEFAULT_UPLOAD_RULES.private),
+  }),
+);
 export type UploadRules = Record<UploadKind, UploadRule>;
 const RulePatch = z.object({ enabled: z.boolean(), visibility: UploadVisibility, group: GroupId.nullable() }).partial().strict();
 
@@ -130,7 +147,7 @@ export const ConfigPatch = z
     ballchasingToken: z.string().trim().min(1).nullable(),
     /** Upload saved replays (only does anything with a key), by kind of match. */
     ballchasingUpload: z.boolean(),
-    ballchasingUploads: z.object({ online: RulePatch, tournament: RulePatch, private: RulePatch }).partial().strict(),
+    ballchasingUploads: z.object({ ranked: RulePatch, casual: RulePatch, tournament: RulePatch, private: RulePatch }).partial().strict(),
     shortcuts: z.object(Object.fromEntries(SHORTCUT_ACTIONS.map((a) => [a, Accelerator])) as Record<ShortcutAction, typeof Accelerator>).partial(),
     notifications: NotificationSettings.partial(),
     startAtLogin: z.boolean(),
@@ -187,7 +204,8 @@ export interface ConfigResponse {
   paths: { settingsFile: string; logFile: string; dataDir: string; dashboardUrl: string } | null;
 }
 
-export const OpenTarget = z.enum(["settingsFile", "logFile", "dataDir", "browser"]);
+/** "taskbarSettings": Windows Settings → Personalization → Taskbar, where tray icons are shown or hidden. */
+export const OpenTarget = z.enum(["settingsFile", "logFile", "dataDir", "browser", "taskbarSettings"]);
 export type OpenTarget = z.infer<typeof OpenTarget>;
 
 export type ConfigPatchResponse = { ok: true; config: ConfigResponse } | { ok: false; reason: string };

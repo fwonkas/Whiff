@@ -60,15 +60,30 @@ describe("settings", () => {
     const view = await api.config();
     expect(view.ballchasingUpload).toBe(true);
     expect(view.ballchasingUploads).toEqual({
-      online: { enabled: true, visibility: "public", group: null },
+      ranked: { enabled: true, visibility: "public", group: null },
+      casual: { enabled: false, visibility: "public", group: null },
       tournament: { enabled: true, visibility: "public", group: null },
       private: { enabled: true, visibility: "private", group: null },
     });
-    await api.patchConfig({ ballchasingUploads: { online: { enabled: false } } });
-    const r = await api.patchConfig({ ballchasingUploads: { online: { group: "https://ballchasing.com/group/joe-online-x1y2" } } });
-    expect(r.ok && r.config.ballchasingUploads.online).toEqual({ enabled: false, visibility: "public", group: "joe-online-x1y2" });
-    expect(JSON.parse(readFileSync(settingsFile, "utf8")).ballchasingUploads).toEqual({ online: { enabled: false, group: "joe-online-x1y2" } });
-    await expect(api.patchConfig({ ballchasingUploads: { online: { group: "not a group" } } })).rejects.toThrow();
+    await api.patchConfig({ ballchasingUploads: { ranked: { enabled: false } } });
+    const r = await api.patchConfig({ ballchasingUploads: { ranked: { group: "https://ballchasing.com/group/joe-ranked-x1y2" } } });
+    expect(r.ok && r.config.ballchasingUploads.ranked).toEqual({ enabled: false, visibility: "public", group: "joe-ranked-x1y2" });
+    expect(JSON.parse(readFileSync(settingsFile, "utf8")).ballchasingUploads).toEqual({ ranked: { enabled: false, group: "joe-ranked-x1y2" } });
+    await expect(api.patchConfig({ ballchasingUploads: { ranked: { group: "not a group" } } })).rejects.toThrow();
+    await expect(api.patchConfig({ ballchasingUploads: { online: { enabled: true } } } as never)).rejects.toThrow();
+  });
+
+  it("splits the old Ranked & casual rule: ranked keeps it, casual keeps its visibility and group but starts off", async () => {
+    const { api } = await start({ ballchasingUploads: { online: { visibility: "unlisted", group: "mine" }, private: { enabled: false } } });
+    expect((await api.config()).ballchasingUploads).toMatchObject({
+      ranked: { enabled: true, visibility: "unlisted", group: "mine" },
+      casual: { enabled: false, visibility: "unlisted", group: "mine" },
+      private: { enabled: false },
+    });
+    // Once casual is turned on, that sticks even with the old rule still in the file.
+    const r = await api.patchConfig({ ballchasingUploads: { casual: { enabled: true } } });
+    expect(r.ok && r.config.ballchasingUploads.casual).toEqual({ enabled: true, visibility: "unlisted", group: "mine" });
+    expect((await api.config()).ballchasingUploads.casual.enabled).toBe(true);
   });
 
   it("moves past matches into With teammates when a teammate is added", async () => {

@@ -849,6 +849,7 @@ const desktopHooks: DesktopHooks = {
   paths: () => ({ settingsFile: configPath, logFile: logPath, dashboardUrl: `http://localhost:${collector?.port ?? loadConfig(configPath).port}` }),
   open(what) {
     if (what === "browser") return openInBrowser();
+    if (what === "taskbarSettings") return void shell.openExternal("ms-settings:taskbar");
     void shell.openPath(what === "settingsFile" ? configPath : what === "logFile" ? logPath : loadConfig(configPath).dataDir);
   },
   configChanged(keys) {

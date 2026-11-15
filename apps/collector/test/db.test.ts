@@ -2,6 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { isCasual } from "@rl/schema";
 import { StatsDb } from "../src/db.ts";
 import { ingestRecording } from "../src/ingest.ts";
 import { fixture, ME, TEAMMATE } from "./fixtures.ts";
@@ -93,6 +94,23 @@ describe("matches from saved replays", () => {
     expect([...db.skippedGuids()].sort()).toEqual(skipped.map((s) => s.matchGuid!.toUpperCase()).sort());
     db.setRecordCasual(true);
     expect(db.skippedGuids().size).toBe(0);
+    db.close();
+  });
+
+  it("knows each match's playlist by GUID: kept matches, and casual ones left out", async () => {
+    // For ballchasing uploads: a replay's header says only "Online" for ranked and casual alike.
+    const db = new StatsDb(":memory:");
+    const { skipped } = await ingestRecording(fixture("casual-3s"), { ...config, recordCasual: false });
+    for (const s of skipped) db.recordSkipped(s);
+    const ranked = (await load("ranked-1s-win")).filter((s) => s.kind === "match");
+    for (const s of ranked) db.saveSession(s);
+    const playlists = db.playlistsByGuid();
+    for (const s of skipped) expect(playlists.get(s.matchGuid!.toUpperCase())).toBe(s.playlistId);
+    expect(skipped.every((s) => isCasual(s.playlistId))).toBe(true);
+    for (const s of ranked) expect(playlists.get(s.matchGuid!.toUpperCase())).toBe(10);
+    // Turning casual on doesn't forget them (unlike skippedGuids).
+    db.setRecordCasual(true);
+    expect(db.playlistsByGuid().size).toBe(playlists.size);
     db.close();
   });
 

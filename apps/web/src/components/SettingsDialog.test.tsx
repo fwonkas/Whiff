@@ -72,6 +72,7 @@ function renderAt(url: string, extra: { canQuitGame?: boolean; replays?: Replays
     stopBackfill: vi.fn(async () => ({ ok: true })),
     setBackfillQuit: vi.fn(async () => ({ ok: true })),
     fetchMissingFromBallchasing: vi.fn(async () => ({ ok: true })),
+    openInApp: vi.fn(async () => ({ ok: true })),
     teammateSuggestions: vi.fn(async () => [{ primaryId: "Epic|teammate|0", name: "Teammate", matches: 9, lastPlayedAt: Date.now(), known: false }]),
   } as unknown as ApiClient;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -233,6 +234,10 @@ describe("settings dialog", () => {
     await userEvent.click(open);
     expect(api.patchConfig).toHaveBeenCalledWith({ ui: { openDashboardOnLaunch: true } });
     await waitFor(() => expect(open).toBeChecked());
+    // Windows decides whether the tray icon shows on the taskbar: point to its switch.
+    expect(within(dialog).getByText(/Windows decides whether Whiff’s icon shows on the taskbar/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Open taskbar settings" }));
+    expect(api.openInApp).toHaveBeenCalledWith("taskbarSettings");
   });
 
   it("opens on the tab in the hash and closes back to the page", async () => {
@@ -252,20 +257,26 @@ describe("settings dialog", () => {
     expect(upload).toBeChecked();
     expect(upload).toBeDisabled();
     expect(upload).toHaveAccessibleDescription("Needs an API key.");
-    expect(within(dialog).getByRole("checkbox", { name: "Ranked & casual" })).toBeChecked();
-    expect(within(dialog).getByRole("checkbox", { name: "Ranked & casual" })).toBeDisabled();
+    expect(within(dialog).getByRole("checkbox", { name: "Ranked" })).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: "Ranked" })).toBeDisabled();
+    expect(within(dialog).getByRole("checkbox", { name: "Casual" })).not.toBeChecked();
+    expect(within(dialog).getByRole("combobox", { name: "Casual: who can see them" })).toHaveDisplayValue("Public");
     expect(within(dialog).getByRole("combobox", { name: "Private: who can see them" })).toHaveDisplayValue("Private");
 
     await userEvent.type(within(dialog).getByLabelText("API key"), "abc123");
     await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(upload).toBeEnabled());
     expect(upload).toBeChecked();
-    const online = within(dialog).getByRole("combobox", { name: "Ranked & casual: who can see them" });
-    expect(online).toBeEnabled();
-    await userEvent.selectOptions(online, "Unlisted");
-    expect(api.patchConfig).toHaveBeenLastCalledWith({ ballchasingUploads: { online: { visibility: "unlisted" } } });
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Ranked & casual: group" }), "online-2026{Enter}");
-    expect(api.patchConfig).toHaveBeenLastCalledWith({ ballchasingUploads: { online: { group: "online-2026" } } });
+    const ranked = within(dialog).getByRole("combobox", { name: "Ranked: who can see them" });
+    expect(ranked).toBeEnabled();
+    // Casual is off, so its own settings wait until it's turned on.
+    expect(within(dialog).getByRole("combobox", { name: "Casual: who can see them" })).toBeDisabled();
+    await userEvent.selectOptions(ranked, "Unlisted");
+    expect(api.patchConfig).toHaveBeenLastCalledWith({ ballchasingUploads: { ranked: { visibility: "unlisted" } } });
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Ranked: group" }), "ranked-2026{Enter}");
+    expect(api.patchConfig).toHaveBeenLastCalledWith({ ballchasingUploads: { ranked: { group: "ranked-2026" } } });
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: "Casual" }));
+    expect(api.patchConfig).toHaveBeenLastCalledWith({ ballchasingUploads: { casual: { enabled: true } } });
     await userEvent.click(within(dialog).getByRole("checkbox", { name: "Tournament" }));
     expect(api.patchConfig).toHaveBeenLastCalledWith({ ballchasingUploads: { tournament: { enabled: false } } });
     expect(within(dialog).getByRole("textbox", { name: "Tournament: group" })).toBeDisabled();

@@ -10,6 +10,7 @@ import {
   SHORTCUT_ACTIONS,
   UiSettings,
   type ConfigResponse,
+  type OpenTarget,
   type ShortcutAction,
 } from "@rl/api-contract";
 import { loadConfig } from "./config.ts";
@@ -31,7 +32,7 @@ export interface DesktopHooks {
   /** Files and addresses the Advanced settings show. */
   paths(): { settingsFile: string; logFile: string; dashboardUrl: string };
   /** Open one in its usual app (Explorer, Notepad, the browser). */
-  open(what: "settingsFile" | "logFile" | "dataDir" | "browser"): void;
+  open(what: OpenTarget): void;
   /** After the file changed: re-register shortcuts, refresh the tray. */
   configChanged(keys: string[]): void;
 }

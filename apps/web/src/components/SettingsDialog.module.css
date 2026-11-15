@@ -130,6 +130,11 @@
   font-size: 13px;
   max-width: 60ch;
 }
+.trayHint {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
 .small {
   font-size: 13px;
 }

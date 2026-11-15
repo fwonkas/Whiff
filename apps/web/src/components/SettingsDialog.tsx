@@ -283,6 +283,24 @@ function Button({ children, onClick, disabled, kind }: { children: ReactNode; on
 
 // --- panels -----------------------------------------------------------------
 
+/** Windows, not Whiff, decides whether the tray icon sits on the taskbar or under ^; this points to the switch. */
+function TrayIconHint() {
+  const open = useOpenInApp();
+  return (
+    <div className={styles.trayHint}>
+      <p className={`muted ${styles.hint}`}>
+        Windows decides whether Whiff’s icon shows on the taskbar or under the ^ arrow. To keep it on the taskbar, turn Whiff on under{" "}
+        <strong>Other system tray icons</strong> in the taskbar settings (on Windows 10: <strong>Select which icons appear on the taskbar</strong>).
+      </p>
+      <div className={styles.actions}>
+        <Button onClick={() => open.mutate("taskbarSettings")}>
+          Open taskbar settings
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function GeneralPanel({ config, save }: PanelProps) {
   const id = useId();
   const ui = (p: Partial<UiSettings>) => save({ ui: p });
@@ -310,6 +328,7 @@ function GeneralPanel({ config, save }: PanelProps) {
             onChange={(v) => ui({ openDashboardOnLaunch: v })}
             label="Open the dashboard when Whiff starts"
           />
+          <TrayIconHint />
         </Section>
       )}
 
@@ -752,7 +771,7 @@ function BallchasingPanel({ config, save }: PanelProps) {
   );
 }
 
-const UPLOAD_KIND_LABELS: Record<UploadKind, string> = { online: "Ranked & casual", tournament: "Tournament", private: "Private" };
+const UPLOAD_KIND_LABELS: Record<UploadKind, string> = { ranked: "Ranked", casual: "Casual", tournament: "Tournament", private: "Private" };
 const VISIBILITY_OPTIONS: { value: UploadVisibility; label: string }[] = [
   { value: "public", label: "Public" },
   { value: "unlisted", label: "Unlisted" },

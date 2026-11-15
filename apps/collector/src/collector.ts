@@ -227,9 +227,10 @@ export async function startCollector(opts: CollectorOptions): Promise<RunningCol
     rules: () => uploadRules,
     replays: () => {
       const deleted = db.deletedGuids();
+      const playlists = db.playlistsByGuid();
       return listSavedReplays(replayDirs)
         .filter((r) => !r.matchGuid || !deleted.has(r.matchGuid))
-        .map((r) => ({ ...r, kind: uploadKind(r.matchType) }));
+        .map((r) => ({ ...r, kind: uploadKind(r.matchType, r.matchGuid ? (playlists.get(r.matchGuid.toUpperCase()) ?? null) : null) }));
     },
     known: () => db.onBallchasing(),
     record: (replayId, id, how) => {

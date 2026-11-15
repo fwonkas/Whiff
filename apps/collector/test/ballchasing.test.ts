@@ -134,14 +134,14 @@ describe("uploading saved replays", () => {
     const records: { replayId: string; id: string | null; how: string }[] = [];
     let on = true;
     const replays: UploadableReplay[] = [
-      { replayId: A, path: "a", mtimeMs: ended, matchEndedAt: ended, kind: "online" },
-      { replayId: B, path: "b", mtimeMs: now - 5_000, matchEndedAt: now - 10_000, kind: "online" }, // still being written
+      { replayId: A, path: "a", mtimeMs: ended, matchEndedAt: ended, kind: "ranked" },
+      { replayId: B, path: "b", mtimeMs: now - 5_000, matchEndedAt: now - 10_000, kind: "ranked" }, // still being written
       { replayId: "C".repeat(32), path: "c", mtimeMs: ended, matchEndedAt: ended, kind: "tournament" }, // tournaments are off here
       { replayId: "E".repeat(32), path: "e", mtimeMs: ended, matchEndedAt: ended, kind: null }, // offline
     ];
     const rules = {
       ...DEFAULT_UPLOAD_RULES,
-      online: { enabled: true, visibility: "unlisted" as const, group: "my-group-1a2b" },
+      ranked: { enabled: true, visibility: "unlisted" as const, group: "my-group-1a2b" },
       tournament: { ...DEFAULT_UPLOAD_RULES.tournament, enabled: false },
     };
     const uploader = new ReplayUploader({
@@ -204,8 +204,12 @@ describe("uploading saved replays", () => {
 });
 
 describe("sorting saved replays into upload kinds", () => {
-  it("goes by the header's MatchType", () => {
-    expect(uploadKind("Online")).toBe("online");
+  it("goes by the header's MatchType, and for Online the playlist: ranked or casual", () => {
+    expect(uploadKind("Online", 11)).toBe("ranked");
+    expect(uploadKind("Online", 2)).toBe("casual");
+    expect(uploadKind("Online", 15)).toBe("casual");
+    // Not recorded live nor played through: no playlist, counted as ranked.
+    expect(uploadKind("Online")).toBe("ranked");
     expect(uploadKind("Tournament")).toBe("tournament");
     expect(uploadKind("Private")).toBe("private");
     expect(uploadKind("Offline")).toBeNull();

@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import type { UploadKind, UploadRules, UploadVisibility } from "@rl/api-contract";
+import { isCasual } from "@rl/schema";
 import { join } from "node:path";
 import { readReplayHeader, replaySummary } from "./replay-header.ts";
 
@@ -225,11 +226,15 @@ export async function fetchMissingReplays(
 
 /**
  * Which kind of match a saved replay is, for the upload settings, from the
- * header's MatchType: Online (ranked or casual matchmaking), Tournament or
- * Private. null: never uploaded (offline, LAN, bots, an unreadable header).
+ * header's MatchType: Online, Tournament or Private. Online is ranked or
+ * casual matchmaking, which only the playlist tells apart: from the live
+ * recording, a playthrough or the note left when a casual match wasn't kept.
+ * An Online match with no known playlist (Whiff wasn't running and it hasn't
+ * been played through) counts as ranked. null: never uploaded (offline, LAN,
+ * bots, an unreadable header).
  */
-export function uploadKind(matchType: string | null): UploadKind | null {
-  if (matchType === "Online") return "online";
+export function uploadKind(matchType: string | null, playlistId: number | null = null): UploadKind | null {
+  if (matchType === "Online") return isCasual(playlistId) ? "casual" : "ranked";
   if (matchType === "Tournament") return "tournament";
   if (matchType === "Private") return "private";
   return null;

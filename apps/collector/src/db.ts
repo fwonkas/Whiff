@@ -273,6 +273,20 @@ export class StatsDb {
     return new Set(rows.map((r) => r.guid));
   }
 
+  /**
+   * The playlist of every match the app knows by GUID (upper case): matches and
+   * replay playbacks, and live matches left out while casual was off.
+   */
+  playlistsByGuid(): Map<string, number> {
+    const rows = this.db
+      .prepare(
+        `SELECT match_guid AS guid, playlist_id AS playlistId FROM sessions WHERE match_guid IS NOT NULL AND playlist_id IS NOT NULL AND kind IN ('match', 'replay')
+         UNION ALL SELECT guid, playlist_id FROM skipped_matches WHERE playlist_id IS NOT NULL`,
+      )
+      .all() as { guid: string; playlistId: number }[];
+    return new Map(rows.map((r) => [r.guid.toUpperCase(), r.playlistId]));
+  }
+
   /** Match GUIDs of matches deleted in the app. */
   deletedGuids(): Set<string> {
     const rows = this.db.prepare("SELECT key FROM deleted_matches WHERE key LIKE 'guid:%'").all() as { key: string }[];

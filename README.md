@@ -26,7 +26,7 @@ It reads the game's official [Stats API](https://www.rocketleague.com/developer/
 
 1. Download `Whiff-Setup-<version>.exe` from the [latest release](https://github.com/fwonkas/Whiff/releases/latest).
 2. Run it. It installs for your Windows user only and needs no administrator rights. Windows may warn that it doesn't recognize the app (the installer isn't code-signed): choose **More info**, then **Run anyway**.
-3. Whiff opens its dashboard the first time it starts. After that it starts in the system tray (the area by the clock; it may be under the **^** arrow), including when you sign in to Windows. Settings → General can turn off starting at sign-in, or open the dashboard every time.
+3. Whiff opens its dashboard the first time it starts. After that it starts in the system tray (the area by the clock; it may be under the **^** arrow), including when you sign in to Windows. Settings → General can turn off starting at sign-in, open the dashboard every time, and take you to the Windows setting that keeps the icon on the taskbar.
 
 ## First run
 
@@ -73,7 +73,7 @@ Open them from the gear in the dashboard's header, or **Settings…** in the tra
 
 | Tab | What's there |
 | --- | --- |
-| General | Theme, start at sign-in, opening the dashboard at start, what the Sessions link opens with |
+| General | Theme, start at sign-in, opening the dashboard at start, keeping the tray icon on the taskbar, what the Sessions link opens with |
 | Player | Your player ID (found for you) and known teammates, who split your matches into solo and with teammates |
 | Game & replays | Your replays at a glance, playing them, replay review lead time, whether to keep casual matches, your practice speed, the replays folder |
 | Shortcuts | The keyboard shortcuts |
@@ -98,7 +98,7 @@ The dashboard is a web page, served by Whiff on your PC at `http://localhost:492
 
 ### ballchasing.com
 
-With an API key from [ballchasing.com/upload](https://ballchasing.com/upload) (Settings → Ballchasing), Whiff uploads your saved replays, one a minute, newest first, without sending one twice. By default online and tournament matches are **public** and private matches are private; change that, or add a ballchasing group, per kind of match. With the key, Whiff can also download replays you uploaded but didn't save in the game.
+With an API key from [ballchasing.com/upload](https://ballchasing.com/upload) (Settings → Ballchasing), Whiff uploads your saved replays, one a minute, newest first, without sending one twice. By default ranked and tournament matches upload as **public**, private matches as private and casual matches not at all; change that, or add a ballchasing group, per kind of match. A match Whiff didn't record counts as ranked until playing its replay through shows otherwise. With the key, Whiff can also download replays you uploaded but didn't save in the game.
 
 ## Updating
 
