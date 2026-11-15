@@ -873,6 +873,8 @@ function moveLoginItem() {
 
 async function start() {
   for (const line of moved) log(`from RL Stats Lab: ${line}`);
+  // No settings file yet (not even one moved from RL Stats Lab): the first start after installing.
+  const firstRun = !existsSync(configPath);
   ensureConfigFile();
   if (app.isPackaged) moveLoginItem();
   if (app.isPackaged && readConfigFile().startAtLoginSet !== true) {
@@ -944,7 +946,13 @@ async function start() {
   tray = new Tray(icon("waiting"));
   tray.on("click", () => openDashboard());
   refreshTray();
-  void offerStatsApi();
+  // The first start opens the dashboard, so a new user sees more than a tray icon; after
+  // that only with the setting. The Stats API question comes first, so the window can't hide it.
+  const ui = readConfigFile().ui as { openDashboardOnLaunch?: unknown } | undefined;
+  const showDashboard = firstRun || ui?.openDashboardOnLaunch === true;
+  void offerStatsApi().finally(() => {
+    if (showDashboard) openDashboard();
+  });
   checkMatchHistory();
 
   if (app.isPackaged) {

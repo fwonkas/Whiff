@@ -299,9 +299,17 @@ function GeneralPanel({ config, save }: PanelProps) {
         </div>
       </Section>
 
-      {config.startAtLogin !== null && (
+      {config.desktop && (
         <Section title="Startup">
-          <Toggle id={`${id}-login`} checked={config.startAtLogin} onChange={(v) => save({ startAtLogin: v })} label="Start Whiff when I sign in to Windows" />
+          {config.startAtLogin !== null && (
+            <Toggle id={`${id}-login`} checked={config.startAtLogin} onChange={(v) => save({ startAtLogin: v })} label="Start Whiff when I sign in to Windows" />
+          )}
+          <Toggle
+            id={`${id}-open`}
+            checked={config.ui.openDashboardOnLaunch}
+            onChange={(v) => ui({ openDashboardOnLaunch: v })}
+            label="Open the dashboard when Whiff starts"
+          />
         </Section>
       )}
 

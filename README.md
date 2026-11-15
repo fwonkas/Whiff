@@ -26,13 +26,13 @@ It reads the game's official [Stats API](https://www.rocketleague.com/developer/
 
 1. Download `Whiff-Setup-<version>.exe` from the [latest release](https://github.com/fwonkas/Whiff/releases/latest).
 2. Run it. It installs for your Windows user only and needs no administrator rights. Windows may warn that it doesn't recognize the app (the installer isn't code-signed): choose **More info**, then **Run anyway**.
-3. Whiff starts in the system tray (the area by the clock; it may be under the **^** arrow) and will start when you sign in to Windows. You can turn that off in Settings → General.
+3. Whiff opens its dashboard the first time it starts. After that it starts in the system tray (the area by the clock; it may be under the **^** arrow), including when you sign in to Windows. Settings → General can turn off starting at sign-in, or open the dashboard every time.
 
 ## First run
 
 1. **Turn on the Stats API.** It's off in the game by default. Whiff finds Rocket League and offers to turn it on; say yes, and allow the Windows permission prompt (the game's settings are in a protected folder). If Rocket League was running, restart it. A game update can turn it off again; Whiff notices and offers again.
 2. **Play.** Start a match or some freeplay. Whiff recognizes you from your first match and asks once, in the dashboard, to confirm it picked the right player.
-3. **Open the dashboard:** click the tray icon. Closing the window keeps Whiff running in the tray.
+3. **Open the dashboard:** click the tray icon (it opens by itself the first time). Closing the window keeps Whiff running in the tray.
 
 The tray icon shows what Whiff is doing: green while recording, gray while waiting for Rocket League, amber when recording is paused. Right-click it for the menu: launch Rocket League, open the dashboard, pause recording, replays, settings, check for updates and quit.
 
@@ -73,7 +73,7 @@ Open them from the gear in the dashboard's header, or **Settings…** in the tra
 
 | Tab | What's there |
 | --- | --- |
-| General | Theme, start at sign-in, what the Sessions link opens with |
+| General | Theme, start at sign-in, opening the dashboard at start, what the Sessions link opens with |
 | Player | Your player ID (found for you) and known teammates, who split your matches into solo and with teammates |
 | Game & replays | Your replays at a glance, playing them, replay review lead time, whether to keep casual matches, your practice speed, the replays folder |
 | Shortcuts | The keyboard shortcuts |

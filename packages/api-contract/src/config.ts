@@ -89,6 +89,8 @@ export const UiSettings = z.object({
   showTrendsPractice: z.boolean().default(false),
   /** The last choice for "Quit Rocket League when done" when playing saved replays. */
   quitAfterReplays: z.boolean().default(false),
+  /** Desktop app: open the dashboard every time Whiff starts, start at sign-in included (it always does on the very first start). */
+  openDashboardOnLaunch: z.boolean().default(false),
 });
 export type UiSettings = z.infer<typeof UiSettings>;
 export const DEFAULT_UI: UiSettings = UiSettings.parse({});

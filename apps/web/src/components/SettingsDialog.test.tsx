@@ -224,6 +224,17 @@ describe("settings dialog", () => {
     expect(api.patchConfig).toHaveBeenLastCalledWith({ knownTeammates: [{ primaryId: "Epic|teammate|0", name: "Teammate" }] });
   });
 
+  it("Startup can open the dashboard every time Whiff starts", async () => {
+    const { api } = renderAt("/sessions#settings/general");
+    const dialog = await screen.findByRole("dialog", { name: "Settings" });
+    expect(await within(dialog).findByRole("checkbox", { name: "Start Whiff when I sign in to Windows" })).toBeChecked();
+    const open = within(dialog).getByRole("checkbox", { name: "Open the dashboard when Whiff starts" });
+    expect(open).not.toBeChecked();
+    await userEvent.click(open);
+    expect(api.patchConfig).toHaveBeenCalledWith({ ui: { openDashboardOnLaunch: true } });
+    await waitFor(() => expect(open).toBeChecked());
+  });
+
   it("opens on the tab in the hash and closes back to the page", async () => {
     const { router } = renderAt("/sessions#settings/shortcuts");
     const dialog = await screen.findByRole("dialog", { name: "Settings" });
