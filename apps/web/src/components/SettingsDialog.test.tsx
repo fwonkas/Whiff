@@ -240,6 +240,19 @@ describe("settings dialog", () => {
     expect(api.openInApp).toHaveBeenCalledWith("taskbarSettings");
   });
 
+  it("Data & network shows this PC's address, and other devices' only with network access on", async () => {
+    const { api } = renderAt("/sessions#settings/data");
+    const dialog = await screen.findByRole("dialog", { name: "Settings" });
+    expect(await within(dialog).findByText("http://localhost:49200")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Open in browser" }));
+    expect(api.openInApp).toHaveBeenCalledWith("browser");
+    expect(within(dialog).queryByText("Addresses")).toBeNull();
+    expect(within(dialog).queryByRole("list", { name: "Dashboard addresses" })).toBeNull();
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: "Open the dashboard from other devices on my network" }));
+    const list = await within(dialog).findByRole("list", { name: "Dashboard addresses" });
+    expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["http://rocketleague.local:49200", "http://192.168.1.20:49200"]);
+  });
+
   it("opens on the tab in the hash and closes back to the page", async () => {
     const { router } = renderAt("/sessions#settings/shortcuts");
     const dialog = await screen.findByRole("dialog", { name: "Settings" });

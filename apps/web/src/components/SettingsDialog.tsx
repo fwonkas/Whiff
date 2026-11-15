@@ -862,31 +862,36 @@ function DataPanel({ config, save }: PanelProps) {
         <Row label="Port" htmlFor={`${id}-port`}>
           <TextField id={`${id}-port`} type="number" mono value={String(config.port)} onCommit={(v) => Number(v) && save({ port: Number(v) })} />
         </Row>
+        <Row label="This PC">
+          <div className={styles.actions}>
+            <span className={`num ${styles.small} ${styles.pathText}`}>{config.addresses.thisPc}</span>
+            {config.desktop && <Button onClick={() => open.mutate("browser")}>Open in browser</Button>}
+          </div>
+        </Row>
         <Toggle id={`${id}-lan`} checked={config.allowLan} onChange={(v) => save({ allowLan: v })} label="Open the dashboard from other devices on my network" />
         <p className={`muted ${styles.hint}`}>
           Anyone on the network could then read your stats and send replay commands to the game. Settings can still be changed only on this PC.
         </p>
-        <Row
-          label="Addresses"
-          hint={
-            config.addresses.network.length
-              ? "On another device, try the name first; if it doesn’t open, use a number address."
-              : config.allowLan
-                ? "Other devices can use this PC’s address after a restart."
-                : "Other devices can open it once network access is on."
-          }
-        >
-          <ul className={styles.addresses} aria-label="Dashboard addresses">
-            <li>
-              <span className={`num ${styles.small}`}>{config.addresses.thisPc}</span> <span className="muted">this PC</span>
-            </li>
-            {config.addresses.network.map((a) => (
-              <li key={a}>
-                <span className={`num ${styles.small}`}>{a}</span>
-              </li>
-            ))}
-          </ul>
-        </Row>
+        {config.allowLan && (
+          <Row
+            label="Addresses"
+            hint={
+              config.addresses.network.length
+                ? "On another device, try the name first; if it doesn’t open, use a number address."
+                : "Other devices can use this PC’s address after a restart."
+            }
+          >
+            {config.addresses.network.length > 0 && (
+              <ul className={styles.addresses} aria-label="Dashboard addresses">
+                {config.addresses.network.map((a) => (
+                  <li key={a}>
+                    <span className={`num ${styles.small}`}>{a}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Row>
+        )}
       </Section>
     </>
   );
@@ -933,14 +938,6 @@ function AdvancedPanel({ config, save }: PanelProps) {
           For matches never recorded live, the replay is the only source, and playing it faster than 1x misses a few touches. Their Watch
           buttons turn orange; watching one through at normal speed fills the touches in. Matches recorded live aren’t affected.
         </p>
-      </Section>
-      <Section title="Dashboard in a browser" hint="The same dashboard as this window, in your own browser. With network access on (Data & network), other devices can open it at this PC’s address.">
-        <Row label="Address">
-          <div className={styles.actions}>
-            <span className={`num ${styles.small} ${styles.pathText}`}>{p.dashboardUrl}</span>
-            <Button onClick={() => open.mutate("browser")}>Open in browser</Button>
-          </div>
-        </Row>
       </Section>
     </>
   );
