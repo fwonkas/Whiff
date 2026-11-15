@@ -24,6 +24,18 @@ import { SubtrWorker, type SubtrWorkerOptions } from "./subtr/pool.ts";
 import { configView, dashboardAddresses, writeSettingsPatch, type DesktopHooks } from "./settings.ts";
 import { loadConfig } from "./config.ts";
 
+/**
+ * Why not to close the game at the end of a replay run, or null to close it.
+ * Only live play keeps it open: a replay session still open (the last replay
+ * on its final frame, one skipped as stuck) doesn't, as it did on 2026-11-15.
+ */
+export function keepGameOpen(s: { stopped: boolean; gameConnected: boolean; active: { kind: string } | null }): string | null {
+  if (s.stopped) return "Whiff is shutting down";
+  if (!s.gameConnected) return "the game isn't connected";
+  if (s.active && s.active.kind !== "replay") return `${s.active.kind} in progress`;
+  return null;
+}
+
 export interface CollectorOptions extends CollectorConfig {
   gameUrl: string;
   dbPath: string;
@@ -553,14 +565,16 @@ export async function startCollector(opts: CollectorOptions): Promise<RunningCol
     onProgress: (p) => opts.onBackfill?.(p),
     // A run that was to end with the game closed finished on its own (see Backfill.quitWhenDone).
     quit: () => {
-      if (stopped || !gameConnected || sessionizer.active || !opts.quitGame) return;
+      if (!opts.quitGame) return;
+      const reason = keepGameOpen({ stopped, gameConnected, active: sessionizer.active });
+      if (reason) return log(`replays finished, but not closing Rocket League: ${reason}`);
       log("replays finished: closing Rocket League");
       void opts.quitGame().then(
         (closed) => log(closed ? "Rocket League closed" : "Rocket League didn't close"),
         (e) => log(`couldn't close Rocket League: ${String(e)}`),
       );
     },
-    onLastPlayed: (_id, at) => {
+    onReplayDone: (_id, at) => {
       raw.write({ receivedAt: at, note: "replay-ended" });
       sessionizer.endReplay(at);
     },

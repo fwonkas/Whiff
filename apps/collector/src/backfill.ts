@@ -82,11 +82,13 @@ export interface BackfillEvents {
   /** Progress changed (a replay started, finished or failed; the run started or stopped). */
   onProgress?: (p: BackfillProgress) => void;
   /**
-   * The run's last replay played to its end. It stays open in the game on its
-   * final frame (no next LoadReplay closes it), so its playback must be ended
-   * here or it isn't saved and still counts as unplayed (2026-11-13: "Play all 1").
+   * A replay that stays open in the game is done with: the run's last one
+   * played to its end (it stays on its final frame, no next LoadReplay closes
+   * it: 2026-11-13, "Play all 1"), or one skipped for not advancing (2026-11-15:
+   * its session stayed open for ten hours, and the run didn't close the game).
+   * Its playback must be ended here.
    */
-  onLastPlayed?: (replayId: string, at: number) => void;
+  onReplayDone?: (replayId: string, at: number) => void;
   /**
    * Close the game: a run started (or switched) to quit when done ran out on
    * its own, BACKFILL_QUIT_DELAY_MS ago. Never after a stop (by hand, live
@@ -240,13 +242,14 @@ export class Backfill {
         this.estimatedMs += estimateMs(this.currentItem);
       }
       this.events.log?.(`backfill: ${s.replayId} played`);
-      if (this.queue.length === 0) this.events.onLastPlayed?.(s.replayId, at);
+      if (this.queue.length === 0) this.events.onReplayDone?.(s.replayId, at);
       return this.next(at);
     }
     // Paused by hand (not at the end) waits; frames that stop without a pause are stuck.
     if (s.pausedAt === null && at - s.lastAdvanceAt > BACKFILL_STALL_MS) {
       this.failed++;
       this.events.log?.(`backfill: ${s.replayId} stopped advancing, skipped`);
+      this.events.onReplayDone?.(s.replayId, at);
       return this.next(at);
     }
   }

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Session } from "@rl/domain";
 import type { GameCommand, GameMessage } from "@rl/schema";
-import { Backfill, BACKFILL_LOAD_TIMEOUT_MS, BACKFILL_QUIT_DELAY_MS, BACKFILL_RECORDED_SPEED, BACKFILL_SPEED } from "../src/backfill.ts";
+import { Backfill, BACKFILL_LOAD_TIMEOUT_MS, BACKFILL_QUIT_DELAY_MS, BACKFILL_RECORDED_SPEED, BACKFILL_SPEED, BACKFILL_STALL_MS } from "../src/backfill.ts";
+import { keepGameOpen } from "../src/collector.ts";
 import { readRecording } from "../src/recording.ts";
 import { Sessionizer } from "../src/sessionizer.ts";
 import { listSavedReplays, matchHistoryRisk, planBackfill, replayDirsIn } from "../src/replay-files.ts";
@@ -43,7 +44,7 @@ describe("Backfill", () => {
     const ended: string[] = [];
     const b = new Backfill({
       send: () => true,
-      onLastPlayed: (id, at) => {
+      onReplayDone: (id, at) => {
         ended.push(id);
         sz.endReplay(at);
       },
@@ -143,6 +144,60 @@ describe("Backfill", () => {
       watch.tick(w + 60_000);
       expect(quit).not.toHaveBeenCalled();
     });
+  });
+
+  it("ends a replay skipped for not advancing, and the run still closes the game (2026-11-15)", async () => {
+    // A replay stopped advancing near the end of a run; its session stayed open for ten hours,
+    // and the run, seeing a session in progress, left the game running.
+    const sessions: Session[] = [];
+    const sz = new Sessionizer({ myPrimaryIds: [ME], knownTeammates: [] }, (s) => sessions.push(s));
+    const ended: string[] = [];
+    const quit = vi.fn();
+    const b = new Backfill({
+      send: () => true,
+      quit,
+      onReplayDone: (id, at) => {
+        ended.push(id);
+        sz.endReplay(at);
+      },
+    });
+    let started = false;
+    let last = 0;
+    let playingFrom: number | null = null;
+    for await (const e of readRecording(fixture("replay-backfill"))) {
+      if (e.kind !== "message") continue;
+      if (!started) {
+        b.start([FORFEIT, "MISSING"], e.receivedAt, { quitWhenDone: true });
+        started = true;
+      }
+      sz.ingest(e.receivedAt, e.msg);
+      b.ingest(e.receivedAt, e.msg);
+      b.tick(e.receivedAt);
+      last = e.receivedAt;
+      // 20 s into the first replay's play (it starts paused through the seeks), the game goes quiet.
+      if (e.msg.Event === "MatchUnpaused") playingFrom = e.receivedAt;
+      if (e.msg.Event === "MatchPaused") playingFrom = null;
+      if (playingFrom !== null && e.receivedAt - playingFrom > 20_000) break;
+    }
+    b.tick(last + BACKFILL_STALL_MS + 1);
+    expect(ended).toEqual([FORFEIT]);
+    expect(sz.active).toBeNull();
+    expect(sessions.filter((s) => s.kind === "replay").map((s) => [s.replayId, s.playback?.complete])).toEqual([[FORFEIT, false]]);
+    // The next one never loads; the run finishes and closes the game.
+    const done = last + BACKFILL_STALL_MS + 1 + BACKFILL_LOAD_TIMEOUT_MS + 1;
+    b.tick(done);
+    expect(b.progress()).toMatchObject({ running: false, done: 0, failed: 2 });
+    b.tick(done + BACKFILL_QUIT_DELAY_MS);
+    expect(quit).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the game unless live play is in progress", () => {
+    const base = { stopped: false, gameConnected: true };
+    expect(keepGameOpen({ ...base, active: null })).toBeNull();
+    expect(keepGameOpen({ ...base, active: { kind: "replay" } })).toBeNull();
+    expect(keepGameOpen({ ...base, active: { kind: "match" } })).toBe("match in progress");
+    expect(keepGameOpen({ ...base, active: { kind: "freeplay" } })).toBe("freeplay in progress");
+    expect(keepGameOpen({ ...base, gameConnected: false, active: null })).toBe("the game isn't connected");
   });
 
   it("skips a replay that never loads", () => {
