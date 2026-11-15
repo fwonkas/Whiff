@@ -1,4 +1,6 @@
-// Renders the app and tray icons from assets/icon.svg (Joe's Whiff icon) with Playwright's Chromium:
+// Renders the app icons from assets/icon.svg and the tray icons from assets/icon-small.svg (the
+// Miss marker: a ball, a target ring and an orange dot just outside it; the small one has a solid,
+// thicker ring and a bigger dot, no connector, so it holds up at 16 px) with Playwright's Chromium:
 //   node apps/desktop/scripts/make-icons.mjs
 // Output goes to apps/desktop/assets (committed, so builds don't need a browser).
 // Needs Playwright installed where this runs (not a project dependency).
@@ -9,10 +11,12 @@ import { fileURLToPath } from "node:url";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
 const out = join(dirname(fileURLToPath(import.meta.url)), "..", "assets");
-const source = readFileSync(join(out, "icon.svg"), "utf8");
-const inner = source.replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "").replace(/<title>.*?<\/title>/, "");
+const innerOf = (file) =>
+  readFileSync(join(out, file), "utf8").replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "").replace(/<title>.*?<\/title>/, "");
+const inner = innerOf("icon.svg");
+const innerSmall = innerOf("icon-small.svg");
 
-// The tray icon is the app icon, no status dot (Joe: it read as two balls). Paused: grayed
+// The tray icon is the small-size app icon, no status dot (Joe: it read as two balls). Paused: grayed
 // out. Update ready: an orange badge with two curved arrows, like Windows Update's.
 const arrows = (cx, cy, r) => {
   // Two arcs around the badge's center, each ending in an arrowhead, chasing each other.
@@ -36,9 +40,9 @@ const arrows = (cx, cy, r) => {
 };
 const badge = `<circle cx="744" cy="744" r="248" fill="#f7630c" stroke="#ffffff" stroke-width="56"/>${arrows(744, 744, 122)}`;
 
-const svg = (s, { paused = false, update = false } = {}) =>
+const svg = (s, { paused = false, update = false, tray = false } = {}) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 1024 1024">
-    <g ${paused ? 'style="filter: grayscale(1)"' : ""}>${inner}</g>${update ? badge : ""}</svg>`;
+    <g ${paused ? 'style="filter: grayscale(1)"' : ""}>${tray ? innerSmall : inner}</g>${update ? badge : ""}</svg>`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -57,10 +61,10 @@ for (const [name, opts] of [
   ["tray-update", { update: true }],
   ["tray-paused-update", { paused: true, update: true }],
 ]) {
-  await render(`${name}.png`, 16, opts);
-  await render(`${name}@2x.png`, 32, opts);
+  await render(`${name}.png`, 16, { ...opts, tray: true });
+  await render(`${name}@2x.png`, 32, { ...opts, tray: true });
 }
 // A larger one to look at: node scripts/make-icons.mjs --preview
-if (process.argv.includes("--preview")) await render("update-preview.png", 256, { update: true });
+if (process.argv.includes("--preview")) await render("update-preview.png", 256, { update: true, tray: true });
 await browser.close();
 console.log(`icons written to ${out}`);
