@@ -43,6 +43,22 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # One release for electron-builder to upload into. Without it, its three
+      # uploads (installer, blockmap, latest.yml) each created their own draft
+      # at the same time, and the published one lacked latest.yml (0.2.1–0.2.5).
+      - name: Create the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases" -q ".[] | select(.tag_name == \"v$version\") | .id")
+          if [ -z "$existing" ]; then
+            gh release create "v$version" --draft --title "Whiff $version" --notes "" --target "$GITHUB_SHA"
+          elif [ "$(echo "$existing" | wc -l)" -gt 1 ]; then
+            echo "::error::More than one release for v$version; delete the extra drafts first"
+            exit 1
+          fi
       - name: Build installer
         working-directory: apps/desktop
         run: node scripts/build.mjs && npx electron-builder --win --x64 --publish always
@@ -58,6 +74,11 @@ jobs:
           prev=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)
           git log --no-merges --format='- %s' ${prev:+$prev..}$GITHUB_REF_NAME \
             | grep -v -e '^- Release [0-9]' -e '^- Initial commit$' > notes.md || true
+          # Installed copies update from latest.yml: never publish a release without it.
+          assets=$(gh release view "$GITHUB_REF_NAME" --json assets -q '.assets[].name')
+          for f in latest.yml "Whiff-Setup-${GITHUB_REF_NAME#v}.exe" "Whiff-Setup-${GITHUB_REF_NAME#v}.exe.blockmap"; do
+            grep -qxF "$f" <<< "$assets" || { echo "::error::$f is missing from the release"; exit 1; }
+          done
           gh release edit "$GITHUB_REF_NAME" --draft=false --latest \
             --title "Whiff ${GITHUB_REF_NAME#v}" --notes-file notes.md
       # Manual runs only, as a convenience: the installer is on the draft
