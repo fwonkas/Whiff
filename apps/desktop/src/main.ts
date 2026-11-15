@@ -459,7 +459,8 @@ function checkMatchHistory() {
   );
 }
 
-const icon = (state: "connected" | "waiting" | "paused") => nativeImage.createFromPath(join(assets, `tray-${state}.png`));
+/** The app icon, grayed out while recording is paused, with a badge once an update is ready. */
+const icon = (paused: boolean) => nativeImage.createFromPath(join(assets, `tray${paused ? "-paused" : ""}${updateReady ? "-update" : ""}.png`));
 
 function statusLine(s: CollectorStatus): string {
   if (s.paused) return "Recording paused";
@@ -655,9 +656,10 @@ function focusGame(): Promise<void> | void {
 function refreshTray() {
   if (!tray || !collector) return;
   const s = collector.status();
-  tray.setImage(icon(s.paused ? "paused" : s.gameConnected ? "connected" : "waiting"));
+  tray.setImage(icon(s.paused));
   const last = lastSessionLine(s);
-  tray.setToolTip([APP_NAME, statusLine(s), last].filter(Boolean).join("\n"));
+  const update = updateReady ? `Update ready: ${updateReady}` : null;
+  tray.setToolTip([APP_NAME, statusLine(s), last, update].filter(Boolean).join("\n"));
 
   const items: MenuItemConstructorOptions[] = [
     { label: statusLine(s), enabled: false },
@@ -719,7 +721,11 @@ function refreshTray() {
   items.push(
     { type: "separator" },
     { label: "Settings…", click: () => openDashboard("#settings") },
-    ...(app.isPackaged ? [{ label: "Check for updates", click: () => void checkForUpdates(true) }] : []),
+    ...(!app.isPackaged
+      ? []
+      : updateReady
+        ? [{ label: `Install update and restart (${updateReady})`, click: () => void quit("restart") }]
+        : [{ label: "Check for updates", click: () => void checkForUpdates(true) }]),
     { type: "separator" },
     { label: `Quit ${APP_NAME} ${app.getVersion()}`, click: () => void quit() },
   );
@@ -796,21 +802,80 @@ async function offerBackfill() {
   refreshTray();
 }
 
-async function checkForUpdates(fromMenu: boolean) {
-  try {
-    const { autoUpdater } = await import("electron-updater");
+// --- updates ------------------------------------------------------------------
+// Background checks (at start and every few hours) download a new version
+// quietly; the tray icon gets a badge and the menu "Install update and
+// restart". Quitting installs it too. "Check for updates" from the menu goes
+// all the way: download, install and restart.
+
+/** The version downloaded and ready to install, if any. */
+let updateReady: string | null = null;
+let updateRun: Promise<void> | null = null;
+/** The user asked to update: restart into it as soon as it's downloaded. */
+let restartWhenReady = false;
+let updaterSetUp = false;
+
+async function getUpdater() {
+  const { autoUpdater } = await import("electron-updater");
+  if (!updaterSetUp) {
+    updaterSetUp = true;
     autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} } as never;
-    const result = await autoUpdater.checkForUpdatesAndNotify();
-    if (fromMenu && !result?.isUpdateAvailable) {
-      await dialog.showMessageBox({ title: APP_NAME, message: `You have the latest version (${app.getVersion()}).` });
-    }
-  } catch (e) {
-    log(`update check failed: ${String(e)}`);
-    if (fromMenu) await dialog.showMessageBox({ type: "error", title: APP_NAME, message: "Couldn't check for updates.", detail: String(e) });
+    autoUpdater.autoDownload = true;
+    // quit() decides: it installs a downloaded update itself.
+    autoUpdater.autoInstallOnAppQuit = false;
+    autoUpdater.on("update-downloaded", (info) => {
+      updateReady = info.version;
+      log(`update ${info.version} downloaded`);
+      refreshTray();
+      if (restartWhenReady) void quit("restart");
+    });
   }
+  return autoUpdater;
 }
 
-async function quit() {
+async function checkForUpdates(fromMenu: boolean) {
+  if (fromMenu) {
+    if (updateReady) return void quit("restart");
+    restartWhenReady = true;
+    if (updateRun) {
+      notify(APP_NAME, "Downloading the update. Whiff restarts when it's done.");
+      return;
+    }
+  }
+  if (updateRun) return;
+  updateRun = (async () => {
+    try {
+      const updater = await getUpdater();
+      const result = await updater.checkForUpdates();
+      if (!result?.isUpdateAvailable) {
+        if (fromMenu) {
+          restartWhenReady = false;
+          await dialog.showMessageBox({ title: APP_NAME, message: `You have the latest version (${app.getVersion()}).` });
+        }
+        return;
+      }
+      if (restartWhenReady) notify(APP_NAME, `Downloading Whiff ${result.updateInfo.version}. Whiff restarts when it's done.`);
+      // update-downloaded takes it from there.
+      await result.downloadPromise;
+    } catch (e) {
+      log(`update check failed: ${String(e)}`);
+      if (restartWhenReady) {
+        restartWhenReady = false;
+        await dialog.showMessageBox({ type: "error", title: APP_NAME, message: "Couldn't update Whiff.", detail: String(e) });
+      }
+    } finally {
+      updateRun = null;
+    }
+  })();
+  await updateRun;
+}
+
+/**
+ * Close everything and exit. With an update downloaded, its installer runs
+ * as Whiff exits, silently: "restart" starts the new version afterwards,
+ * a plain quit doesn't.
+ */
+async function quit(how: "quit" | "restart" = "quit") {
   if (quitting) return;
   quitting = true;
   try {
@@ -826,7 +891,15 @@ async function quit() {
     await collector?.stop();
   } finally {
     tray?.destroy();
-    app.exit(0);
+    if (updateReady) {
+      log(`installing update ${updateReady}${how === "restart" ? " and restarting" : ""}`);
+      // Starts the installer and quits (before-quit lets it through: quitting is set).
+      (await getUpdater()).quitAndInstall(true, how === "restart");
+      // If the installer didn't start, don't hang around.
+      setTimeout(() => app.exit(0), 10_000).unref();
+    } else {
+      app.exit(0);
+    }
   }
 }
 
@@ -843,6 +916,8 @@ const desktopHooks: DesktopHooks = {
   },
   restart() {
     log("restarting for new settings");
+    // With an update ready, the installer starts the new version instead.
+    if (updateReady) return void quit("restart");
     app.relaunch();
     void quit();
   },
@@ -944,7 +1019,7 @@ async function start() {
   }
 
   registerShortcuts();
-  tray = new Tray(icon("waiting"));
+  tray = new Tray(icon(false));
   tray.on("click", () => openDashboard());
   refreshTray();
   // The first start opens the dashboard, so a new user sees more than a tray icon; after

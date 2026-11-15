@@ -34,7 +34,7 @@ It reads the game's official [Stats API](https://www.rocketleague.com/developer/
 2. **Play.** Start a match or some freeplay. Whiff recognizes you from your first match and asks once, in the dashboard, to confirm it picked the right player.
 3. **Open the dashboard:** click the tray icon (it opens by itself the first time). Closing the window keeps Whiff running in the tray.
 
-The tray icon shows what Whiff is doing: green while recording, gray while waiting for Rocket League, amber when recording is paused. Right-click it for the menu: launch Rocket League, open the dashboard, pause recording, replays, settings, check for updates and quit.
+The tray icon turns gray while recording is paused and gets an orange badge when an update is ready; hover over it for what Whiff is doing. Right-click it for the menu: launch Rocket League, open the dashboard, pause recording, replays, settings, updates and quit.
 
 ## Using it
 
@@ -102,7 +102,7 @@ With an API key from [ballchasing.com/upload](https://ballchasing.com/upload) (S
 
 ## Updating
 
-Whiff checks for updates every few hours, and **Check for updates** in the tray menu checks now; a new version installs when you quit Whiff. You can also install a newer `Whiff-Setup-<version>.exe` over the old one. Your settings and data stay.
+Whiff checks for updates when it starts and every few hours, and downloads a new version in the background. When one is ready, the tray icon gets an orange badge: choose **Install update and restart** in the tray menu, or it installs the next time you quit Whiff. **Check for updates** in the tray menu checks now and, if there's a new version, downloads it, installs it and restarts Whiff. You can also install a newer `Whiff-Setup-<version>.exe` over the old one. Your settings and data stay.
 
 ## Uninstalling
 

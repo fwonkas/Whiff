@@ -43,7 +43,7 @@
         "from": "assets",
         "to": "assets",
         "filter": [
-          "tray-*.png",
+          "tray*.png",
           "icon.png",
           "splash.html",
           "splash.jpg"

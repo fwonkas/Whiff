@@ -12,28 +12,55 @@ const out = join(dirname(fileURLToPath(import.meta.url)), "..", "assets");
 const source = readFileSync(join(out, "icon.svg"), "utf8");
 const inner = source.replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "").replace(/<title>.*?<\/title>/, "");
 
-// The tray's state as a dot in the bottom-right corner, over the trail.
-const dot = (color) =>
-  color ? `<circle cx="790" cy="790" r="220" fill="${color}" stroke="#ffffff" stroke-width="64"/>` : "";
+// The tray icon is the app icon, no status dot (Joe: it read as two balls). Paused: grayed
+// out. Update ready: an orange badge with two curved arrows, like Windows Update's.
+const arrows = (cx, cy, r) => {
+  // Two arcs around the badge's center, each ending in an arrowhead, chasing each other.
+  const pt = (deg, rad = r) => [cx + rad * Math.cos((deg * Math.PI) / 180), cy + rad * Math.sin((deg * Math.PI) / 180)];
+  const arc = (from, to) => {
+    const [x1, y1] = pt(from);
+    const [x2, y2] = pt(to);
+    return `M${x1} ${y1} A${r} ${r} 0 0 1 ${x2} ${y2}`;
+  };
+  const head = (deg) => {
+    // A triangle at the end of an arc (clockwise), pointing along it.
+    const [tx, ty] = pt(deg + 28);
+    const [ox, oy] = pt(deg - 4, r + r * 0.55);
+    const [ix, iy] = pt(deg - 4, r - r * 0.55);
+    return `M${ox} ${oy} L${tx} ${ty} L${ix} ${iy} Z`;
+  };
+  const w = r * 0.42;
+  return `<g fill="none" stroke="#fff" stroke-width="${w}" stroke-linecap="round">
+      <path d="${arc(200, 330)}"/><path d="${arc(20, 150)}"/></g>
+    <g fill="#fff"><path d="${head(330)}"/><path d="${head(150)}"/></g>`;
+};
+const badge = `<circle cx="744" cy="744" r="248" fill="#f7630c" stroke="#ffffff" stroke-width="56"/>${arrows(744, 744, 122)}`;
 
-const svg = (s, color) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 1024 1024">${inner}${dot(color)}</svg>`;
+const svg = (s, { paused = false, update = false } = {}) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 1024 1024">
+    <g ${paused ? 'style="filter: grayscale(1)"' : ""}>${inner}</g>${update ? badge : ""}</svg>`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
-async function render(file, size, color) {
+async function render(file, size, opts) {
   await page.setViewportSize({ width: size, height: size });
-  await page.setContent(`<html><body style="margin:0;background:transparent">${svg(size, color)}</body></html>`);
+  await page.setContent(`<html><body style="margin:0;background:transparent">${svg(size, opts)}</body></html>`);
   const png = await page.screenshot({ omitBackground: true, clip: { x: 0, y: 0, width: size, height: size } });
   writeFileSync(join(out, file), png);
 }
 
 await render("icon.png", 256);
 await render("icon-512.png", 512);
-const states = { connected: "#2ecc71", waiting: "#9aa5b1", paused: "#f5b041" };
-for (const [state, color] of Object.entries(states)) {
-  await render(`tray-${state}.png`, 16, color);
-  await render(`tray-${state}@2x.png`, 32, color);
+for (const [name, opts] of [
+  ["tray", {}],
+  ["tray-paused", { paused: true }],
+  ["tray-update", { update: true }],
+  ["tray-paused-update", { paused: true, update: true }],
+]) {
+  await render(`${name}.png`, 16, opts);
+  await render(`${name}@2x.png`, 32, opts);
 }
+// A larger one to look at: node scripts/make-icons.mjs --preview
+if (process.argv.includes("--preview")) await render("update-preview.png", 256, { update: true });
 await browser.close();
 console.log(`icons written to ${out}`);
