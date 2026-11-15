@@ -430,3 +430,17 @@ tbody[data-team="them"] .teamRow th {
 .momentList strong {
   font-weight: 500;
 }
+
+/* Under the header: a match I left early, and the choice to count its result. */
+.leftEarly {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.leftEarlyError {
+  color: var(--loss-fg);
+}

@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { isCasual } from "@rl/schema";
+import { createApi } from "../src/api.ts";
 import { StatsDb } from "../src/db.ts";
+import { StatsService } from "../src/service.ts";
 import { ingestRecording } from "../src/ingest.ts";
 import { fixture, ME, TEAMMATE } from "./fixtures.ts";
 
@@ -51,6 +53,49 @@ describe("StatsDb", () => {
     expect(db.frameFor(sessions[0]!.id, 336)).toBe(8701);
     expect(db.frameFor(sessions[0]!.id, -5)).toBeNull();
     db.close();
+  });
+});
+
+describe("a match I left after its result was settled", () => {
+  // Ranked 3s, 2026-11-15: one teammate left at 4:42, the other at 2:33 down 0–3, and I left a second later.
+  // The game sends no MatchEnded, so it's "left early" until I say the result was settled.
+  it("counts as the result its score shows, survives re-ingest, and can go back", async () => {
+    const db = new StatsDb(":memory:");
+    const [m] = (await ingestRecording(fixture("left-after-teammates"), config)).sessions.filter((s) => s.kind === "match");
+    expect([m!.outcome, m!.scoreBlue, m!.scoreOrange, m!.myTeam]).toEqual(["abandoned", 0, 3, 0]);
+    db.saveSession(m!);
+    expect(db.setLeftSettled(m!.id, true)).toBe("ok");
+    expect([db.loadSession(m!.id)!.outcome, db.loadSession(m!.id)!.leftSettled]).toEqual(["loss", true]);
+    db.saveSession(m!); // re-ingest: the recording still says I left
+    expect([db.loadSession(m!.id)!.outcome, db.loadSession(m!.id)!.leftSettled]).toEqual(["loss", true]);
+    expect(db.setLeftSettled(m!.id, false)).toBe("ok");
+    expect([db.loadSession(m!.id)!.outcome, db.loadSession(m!.id)!.leftSettled]).toEqual(["abandoned", false]);
+  });
+
+  it("through the API: the page, the list and the record all follow it", async () => {
+    const db = new StatsDb(":memory:");
+    const [m] = (await ingestRecording(fixture("left-after-teammates"), config)).sessions.filter((s) => s.kind === "match");
+    db.saveSession(m!);
+    const api = createApi({ service: new StatsService(db), gameConnected: () => false });
+    const get = async (path: string) => (await api.request(path)).json() as Promise<{ session?: { outcome: string }; items?: { outcome: string }[] }>;
+    expect((await get(`/api/sessions/${m!.id}`)).session?.outcome).toBe("abandoned"); // cached now
+    const patch = (body: unknown) => api.request(`/api/sessions/${m!.id}`, { method: "PATCH", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
+    const r = await patch({ leftSettled: true });
+    expect(r.status).toBe(200);
+    expect(((await r.json()) as { outcome: string; leftSettled: boolean })).toMatchObject({ outcome: "loss", leftSettled: true });
+    expect((await get(`/api/sessions/${m!.id}`)).session?.outcome).toBe("loss");
+    expect((await get("/api/sessions")).items?.[0]?.outcome).toBe("loss");
+    expect((await patch({ leftSettled: true })).status).toBe(200); // already counted: nothing to do
+  });
+
+  it("is only for a match left early with a score that settles something", async () => {
+    const db = new StatsDb(":memory:");
+    const [m] = (await ingestRecording(fixture("left-after-teammates"), config)).sessions.filter((s) => s.kind === "match");
+    db.saveSession({ ...m!, scoreOrange: 0 });
+    expect(db.setLeftSettled(m!.id, true)).toBe("tied");
+    db.saveSession({ ...m!, outcome: "loss" });
+    expect(db.setLeftSettled(m!.id, true)).toBe("not left");
+    expect(db.setLeftSettled("nope", true)).toBe("not found");
   });
 });
 

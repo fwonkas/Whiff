@@ -74,6 +74,8 @@ export const PackType = z.enum(["offense", "defense"]);
 export const PatchSessionBody = z.object({
   packCode: z.string().trim().min(1).max(40).nullable().optional(),
   note: z.string().max(2000).nullable().optional(),
+  /** A match I left early whose result was settled anyway: count it as its score shows (true) or as left early (false). */
+  leftSettled: z.boolean().optional(),
 });
 export type PatchSessionBody = z.infer<typeof PatchSessionBody>;
 

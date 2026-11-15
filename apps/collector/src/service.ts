@@ -233,6 +233,7 @@ export class StatsService {
       goalsAgainst: m?.goalsAgainst ?? null,
       overtime: s.overtime,
       forfeit: s.forfeit,
+      leftSettled: s.leftSettled ?? false,
       source: s.source,
       partied: s.partied,
       queueWarmup: s.queueWarmup,

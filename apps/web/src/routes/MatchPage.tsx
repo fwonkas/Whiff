@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import type { NeighborSession, SessionDetailResponse } from "@rl/api-contract";
 import { DeleteMatch } from "../components/DeleteMatch.tsx";
+import { HelpTip } from "../components/HelpTip.tsx";
 import { ReplayReview } from "../components/ReplayReview.tsx";
 import panels from "../components/ReplayPanels.module.css";
 import { GoalTimeline } from "../components/match/GoalTimeline.tsx";
@@ -9,7 +10,7 @@ import { ReplayAnalysis } from "../components/match/ReplayAnalysis.tsx";
 import { Scoreboard } from "../components/match/Scoreboard.tsx";
 import { TouchMap } from "../components/match/TouchMap.tsx";
 import styles from "../components/match/match.module.css";
-import { useSession } from "../lib/api.tsx";
+import { usePatchSession, useSession } from "../lib/api.tsx";
 import { arenaName, formatDay, formatMinutes, formatPercent, formatTime, playlistShort, resultLabel, resultWords } from "../lib/format.ts";
 
 /**
@@ -76,6 +77,7 @@ export function MatchPage() {
             .filter(Boolean)
             .join(" · ")}
         </p>
+        {s.kind === "match" && <LeftEarly session={s} />}
       </div>
 
       {s.kind === "match" ? (
@@ -167,5 +169,43 @@ function PracticeFacts({ practice }: { practice: SessionDetailResponse["practice
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * A match I left before it ended counts as "left early". When its result was
+ * settled anyway (my teammates had gone, the deficit couldn't be made up),
+ * this counts it as the result its score shows; it can be undone. Not for a
+ * tied score, which settles nothing.
+ */
+function LeftEarly({ session: s }: { session: SessionDetailResponse["session"] }) {
+  const patch = usePatchSession();
+  const set = (leftSettled: boolean) => patch.mutate({ id: s.id, body: { leftSettled } });
+  const failed = patch.isError ? <span className={styles.leftEarlyError}> Couldn’t change it: {patch.error.message}</span> : null;
+  if (s.leftSettled) {
+    return (
+      <p className={styles.leftEarly}>
+        You left before the end, after the result was settled, so it counts as a {s.outcome === "win" ? "win" : "loss"}.{" "}
+        <button type="button" className={panels.button} disabled={patch.isPending} onClick={() => set(false)}>
+          Count as left early
+        </button>
+        {failed}
+      </p>
+    );
+  }
+  if (s.outcome !== "abandoned" || s.goalsFor === null || s.goalsAgainst === null || s.goalsFor === s.goalsAgainst) return null;
+  const word = s.goalsFor > s.goalsAgainst ? "win" : "loss";
+  return (
+    <p className={styles.leftEarly}>
+      You left before the match ended.{" "}
+      <button type="button" className={panels.button} disabled={patch.isPending} onClick={() => set(true)}>
+        Count it as a {word}
+      </button>
+      <HelpTip about="leaving early">
+        If the result was already settled when you left (your teammates had gone, or there was no coming back), count the match as the {word} its score
+        shows. It then counts in your record like any other {word}, and Whiff keeps the choice when recordings are imported again. You can change it back.
+      </HelpTip>
+      {failed}
+    </p>
   );
 }

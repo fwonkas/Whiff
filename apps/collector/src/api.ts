@@ -237,6 +237,14 @@ export function createApi({ service, gameConnected, webRoot, replayGoto, replayW
     const body = PatchSessionBody.safeParse(await c.req.json().catch(() => null));
     if (!body.success) return invalid(c, body.error);
     const id = c.req.param("id");
+    if (body.data.leftSettled !== undefined) {
+      const r = service.db.setLeftSettled(id, body.data.leftSettled);
+      if (r === "not found") return c.json({ error: "not found" }, 404);
+      if (r === "not left") return c.json({ error: "only a match you left early can be counted as settled" }, 409);
+      if (r === "tied") return c.json({ error: "the score was tied, so it settled nothing" }, 409);
+      // The outcome is in the cached session, the list and the cards.
+      service.invalidate(id);
+    }
     if (!service.db.updateSession(id, body.data)) return c.json({ error: "not found" }, 404);
     return c.json(service.detail(id)!.session);
   });

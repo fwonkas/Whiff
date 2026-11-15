@@ -42,7 +42,7 @@ The tray icon turns gray while recording is paused and gets an orange badge when
 
 **Sessions** lists everything you've played. The chips above it filter by mode (1s, 2s, 3s or an extra mode), teammates, result, replay status and dates; the filters are in the page address, so a bookmark keeps them. The cards beside the list describe exactly what's listed.
 
-Click a match for its page. In **Replay review**, **Watch** opens the match's replay in the game, and each goal or moment has its own Watch button that jumps there a few seconds before. While watching, `Ctrl+Alt+R` goes back to where the last jump started.
+Click a match for its page. A match you left before it ended shows as **Left early**; if the result was settled by then (your teammates had gone, say), **Count it as a loss** (or win) on its page counts it by its score instead. In **Replay review**, **Watch** opens the match's replay in the game, and each goal or moment has its own Watch button that jumps there a few seconds before. While watching, `Ctrl+Alt+R` goes back to where the last jump started.
 
 ### Saving replays
 

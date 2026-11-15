@@ -35,7 +35,7 @@ const touch = (matchTime: number, owner: "me" | "teammate" | "opponent", x: numb
 const detail: SessionDetailResponse = {
   session: {
     id: "m1", kind: "match", startedAt: Date.UTC(2026, 9, 21, 1, 19), durationSeconds: 481, playlistId: 11, playlistName: "Ranked Doubles",
-    arena: "NeoTokyo_Arcade_P", outcome: "win", goalsFor: 2, goalsAgainst: 1, overtime: true, forfeit: false, source: "live", partied: true,
+    arena: "NeoTokyo_Arcade_P", outcome: "win", goalsFor: 2, goalsAgainst: 1, overtime: true, forfeit: false, leftSettled: false, source: "live", partied: true,
     queueWarmup: false, gameSpeed: null, gameSpeedSource: null, me: { score: 700, goals: 2, shots: 4, assists: 0, saves: 1, touches: 40, demos: 0, team: 1 },
     touchShare: 0.55, mvp: true, replay: null, teammates: ["Pat"], pack: null, playSessionId: null, note: null, endedAt: 0, pausedSeconds: 0,
   },
@@ -90,6 +90,36 @@ let liveRouter: ReturnType<typeof makeRouter>;
 /** The analysis of a real ranked 2s replay (anonymized), as the collector stores it. */
 const realAnalysis = () =>
   analyzeReplay(JSON.parse(gunzipSync(readFileSync(`${process.cwd()}/fixtures/ranked-2s-replay.subtr.json.gz`)).toString()) as SubtrExtract);
+
+describe("a match I left early", () => {
+  const left = { ...detail, session: { ...detail.session, outcome: "abandoned" as const, goalsFor: 0, goalsAgainst: 3, mvp: false } };
+
+  it("can be counted as the result its score shows", async () => {
+    renderMatch(undefined, left);
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Left early 0–3");
+    const patchSession = vi.fn(async () => ({ ...left.session, outcome: "loss", leftSettled: true }));
+    Object.assign(liveApi, { patchSession });
+    await userEvent.click(screen.getByRole("button", { name: "Count it as a loss" }));
+    expect(patchSession).toHaveBeenCalledWith("m1", { leftSettled: true });
+    expect(screen.getByRole("button", { name: "About leaving early" })).toBeInTheDocument();
+  });
+
+  it("once counted, says so and can go back", async () => {
+    renderMatch(undefined, { ...left, session: { ...left.session, outcome: "loss", leftSettled: true } });
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Loss 0–3");
+    expect(screen.getByText(/after the result was settled, so it counts as a loss/)).toBeInTheDocument();
+    const patchSession = vi.fn(async () => left.session);
+    Object.assign(liveApi, { patchSession });
+    await userEvent.click(screen.getByRole("button", { name: "Count as left early" }));
+    expect(patchSession).toHaveBeenCalledWith("m1", { leftSettled: false });
+  });
+
+  it("isn't offered for a tied score or a match played to the end", async () => {
+    renderMatch(undefined, { ...left, session: { ...left.session, goalsAgainst: 0 } });
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByRole("button", { name: /Count it as/ })).toBeNull();
+  });
+});
 
 describe("deleting a match", () => {
   it("is at the bottom of the match page, asks first, says what it removes, then goes back to Sessions", async () => {

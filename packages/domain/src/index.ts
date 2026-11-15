@@ -182,6 +182,12 @@ export interface Session {
   source: "live" | "replay";
   /** The match ended early because a team forfeited. */
   forfeit: boolean;
+  /**
+   * Set in the app, not by the game: I left before the match ended, but its
+   * result was settled by then (my teammates had gone, say), so it counts as
+   * the result its score shows instead of "left early".
+   */
+  leftSettled?: boolean;
   /** Replay sessions only. */
   playback: ReplayPlayback | null;
   /** Saved replays only: the live game doesn't send BoostPickup. */

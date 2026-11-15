@@ -226,6 +226,7 @@ export class StatsDb {
     add("source", "TEXT NOT NULL DEFAULT 'live'");
     add("forfeit", "INTEGER NOT NULL DEFAULT 0");
     add("playback", "TEXT");
+    add("left_settled", "INTEGER NOT NULL DEFAULT 0");
   }
 
   close(): void {
@@ -464,20 +465,22 @@ export class StatsDb {
     db.exec("BEGIN");
     try {
       // User-entered fields survive re-ingest.
-      const kept = db.prepare("SELECT pack_code, note FROM sessions WHERE id = ?").get(s.id) as
-        | { pack_code: string | null; note: string | null }
+      const kept = db.prepare("SELECT pack_code, note, left_settled FROM sessions WHERE id = ?").get(s.id) as
+        | { pack_code: string | null; note: string | null; left_settled: number }
         | undefined;
+      // "Left, but the result was settled" (setLeftSettled) holds while the recording still says I left.
+      const settled = kept?.left_settled && s.outcome === "abandoned" ? settledOutcome(s.myTeam, s.scoreBlue, s.scoreOrange) : null;
       db.prepare("DELETE FROM sessions WHERE id = ?").run(s.id);
       db.prepare(
         `INSERT INTO sessions (id, kind, started_at, ended_at, playlist_id, arena, match_guid, replay_id, replay_date,
            my_team, winner_team, outcome, score_blue, score_orange, overtime, partied, queue_warmup, game_speed,
-           team_size, paused_seconds, pack_code, note, source, forfeit, playback)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           team_size, paused_seconds, pack_code, note, source, forfeit, playback, left_settled)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         s.id, s.kind, s.startedAt, s.endedAt, s.playlistId, s.arena, s.matchGuid, s.replayId, s.replayDate,
-        s.myTeam, s.winnerTeam, s.outcome, s.scoreBlue, s.scoreOrange, b(s.overtime), b(s.partied), b(s.queueWarmup),
+        s.myTeam, s.winnerTeam, settled ?? s.outcome, s.scoreBlue, s.scoreOrange, b(s.overtime), b(s.partied), b(s.queueWarmup),
         s.gameSpeed, s.teamSize, s.pausedSeconds, kept?.pack_code ?? null, kept?.note ?? null,
-        s.source, b(s.forfeit), s.playback ? JSON.stringify(s.playback) : null,
+        s.source, b(s.forfeit), s.playback ? JSON.stringify(s.playback) : null, settled ? 1 : 0,
       );
 
       const player = db.prepare(
@@ -881,6 +884,7 @@ export class StatsDb {
       pausedSeconds: r.paused_seconds,
       source: r.source,
       forfeit: !!r.forfeit,
+      leftSettled: !!r.left_settled,
       playback: r.playback ? (JSON.parse(r.playback) as ReplayPlayback) : null,
       boostPickups: all("boost_pickups", " ORDER BY at").map((p) => ({
         at: p.at,
@@ -982,6 +986,28 @@ export class StatsDb {
     return Number(r.changes) > 0;
   }
 
+  /**
+   * A match I left before it ended (outcome "abandoned") whose result was
+   * settled anyway: on, it counts as the result its score shows; off, back to
+   * "left early". Kept across re-ingest. A tied score settles nothing.
+   */
+  setLeftSettled(id: string, on: boolean): "ok" | "not found" | "not left" | "tied" {
+    const r = this.db.prepare("SELECT kind, outcome, left_settled, my_team, score_blue, score_orange FROM sessions WHERE id = ?").get(id) as
+      | { kind: string; outcome: string | null; left_settled: number; my_team: number | null; score_blue: number | null; score_orange: number | null }
+      | undefined;
+    if (!r || r.kind !== "match") return "not found";
+    if (!on) {
+      if (r.left_settled) this.db.prepare("UPDATE sessions SET outcome = 'abandoned', left_settled = 0 WHERE id = ?").run(id);
+      return "ok";
+    }
+    if (r.left_settled) return "ok";
+    if (r.outcome !== "abandoned") return "not left";
+    const outcome = settledOutcome(r.my_team, r.score_blue, r.score_orange);
+    if (!outcome) return "tied";
+    this.db.prepare("UPDATE sessions SET outcome = ?, left_settled = 1 WHERE id = ?").run(outcome, id);
+    return "ok";
+  }
+
   packs(): { code: string; name: string; type: "offense" | "defense" }[] {
     return this.db.prepare("SELECT code, name, type FROM packs ORDER BY name").all() as {
       code: string;
@@ -993,6 +1019,14 @@ export class StatsDb {
   putPack(code: string, name: string, type: "offense" | "defense"): void {
     this.db.prepare("INSERT OR REPLACE INTO packs (code, name, type) VALUES (?, ?, ?)").run(code, name, type);
   }
+}
+
+/** The result a match's score shows for my team; null when tied or unknown. */
+function settledOutcome(myTeam: number | null, blue: number | null, orange: number | null): "win" | "loss" | null {
+  if (myTeam === null || blue === null || orange === null || blue === orange) return null;
+  const mine = myTeam === 0 ? blue : orange;
+  const theirs = myTeam === 0 ? orange : blue;
+  return mine > theirs ? "win" : "loss";
 }
 
 export interface SessionFilter {
@@ -1032,6 +1066,7 @@ export interface SessionRow {
   team_size: number | null;
   source: "live" | "replay";
   forfeit: number;
+  left_settled: number;
   playback: string | null;
   paused_seconds: number;
   pack_code: string | null;

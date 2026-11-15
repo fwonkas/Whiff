@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createApiClient, type ApiClient, type ConfigPatch, type OpenTarget, type SessionsQuery, type SummaryQuery, type TrendsQuery } from "@rl/api-contract";
+import { createApiClient, type ApiClient, type ConfigPatch, type OpenTarget, type PatchSessionBody, type SessionsQuery, type SummaryQuery, type TrendsQuery } from "@rl/api-contract";
 import { cacheUi } from "./ui-prefs.ts";
 
 /**
@@ -269,6 +269,17 @@ export function useReplayWatch() {
 }
 
 /** Delete a match. Everything that lists matches refreshes. */
+/** Change what I edit on a session (notes, a training pack, a left-early match counted as settled). */
+export function usePatchSession() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: PatchSessionBody }) => api.patchSession(id, body),
+    // The outcome feeds the list, the cards and the neighbors' labels, not just this page.
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: keys.all, predicate: (q) => q.queryKey[1] !== "config" }),
+  });
+}
+
 export function useDeleteSession() {
   const api = useApi();
   const queryClient = useQueryClient();
