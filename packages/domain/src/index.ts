@@ -188,6 +188,11 @@ export interface Session {
    * the result its score shows instead of "left early".
    */
   leftSettled?: boolean;
+  /**
+   * I left before the match ended, but after all my teammates had: the
+   * result counts as its score shows (outcome), not as "left early".
+   */
+  teammatesLeft?: boolean;
   /** Replay sessions only. */
   playback: ReplayPlayback | null;
   /** Saved replays only: the live game doesn't send BoostPickup. */

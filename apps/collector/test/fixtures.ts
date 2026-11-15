@@ -1,4 +1,6 @@
-import { readdirSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
@@ -12,6 +14,18 @@ export const allFixtures = () =>
 /** Fixtures are anonymized: my PrimaryId becomes this, a known teammate becomes "Epic|teammate|0". */
 export const ME = "Epic|me|0";
 export const TEAMMATE = "Epic|teammate|0";
+
+/** A fixture's lines, unzipped. */
+export function fixtureLines(name: string): string[] {
+  return gunzipSync(readFileSync(fixture(name))).toString("utf8").split("\n").filter(Boolean);
+}
+
+/** Write lines as a recording in a temporary folder. Returns its path. */
+export function writeRecording(lines: string[]): string {
+  const path = join(mkdtempSync(join(tmpdir(), "rl-rec-")), "recording.ndjson");
+  writeFileSync(path, lines.join("\n") + "\n");
+  return path;
+}
 
 /**
  * Write a recording made of slices of fixtures with collector notes

@@ -234,6 +234,7 @@ export class StatsService {
       overtime: s.overtime,
       forfeit: s.forfeit,
       leftSettled: s.leftSettled ?? false,
+      teammatesLeft: s.teammatesLeft ?? false,
       source: s.source,
       partied: s.partied,
       queueWarmup: s.queueWarmup,

@@ -227,6 +227,7 @@ export class StatsDb {
     add("forfeit", "INTEGER NOT NULL DEFAULT 0");
     add("playback", "TEXT");
     add("left_settled", "INTEGER NOT NULL DEFAULT 0");
+    add("teammates_left", "INTEGER NOT NULL DEFAULT 0");
   }
 
   close(): void {
@@ -474,13 +475,13 @@ export class StatsDb {
       db.prepare(
         `INSERT INTO sessions (id, kind, started_at, ended_at, playlist_id, arena, match_guid, replay_id, replay_date,
            my_team, winner_team, outcome, score_blue, score_orange, overtime, partied, queue_warmup, game_speed,
-           team_size, paused_seconds, pack_code, note, source, forfeit, playback, left_settled)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           team_size, paused_seconds, pack_code, note, source, forfeit, playback, left_settled, teammates_left)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         s.id, s.kind, s.startedAt, s.endedAt, s.playlistId, s.arena, s.matchGuid, s.replayId, s.replayDate,
         s.myTeam, s.winnerTeam, settled ?? s.outcome, s.scoreBlue, s.scoreOrange, b(s.overtime), b(s.partied), b(s.queueWarmup),
         s.gameSpeed, s.teamSize, s.pausedSeconds, kept?.pack_code ?? null, kept?.note ?? null,
-        s.source, b(s.forfeit), s.playback ? JSON.stringify(s.playback) : null, settled ? 1 : 0,
+        s.source, b(s.forfeit), s.playback ? JSON.stringify(s.playback) : null, settled ? 1 : 0, b(s.teammatesLeft ?? false),
       );
 
       const player = db.prepare(
@@ -885,6 +886,7 @@ export class StatsDb {
       source: r.source,
       forfeit: !!r.forfeit,
       leftSettled: !!r.left_settled,
+      teammatesLeft: !!r.teammates_left,
       playback: r.playback ? (JSON.parse(r.playback) as ReplayPlayback) : null,
       boostPickups: all("boost_pickups", " ORDER BY at").map((p) => ({
         at: p.at,
@@ -1067,6 +1069,7 @@ export interface SessionRow {
   source: "live" | "replay";
   forfeit: number;
   left_settled: number;
+  teammates_left: number;
   playback: string | null;
   paused_seconds: number;
   pack_code: string | null;

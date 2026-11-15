@@ -35,7 +35,7 @@ const touch = (matchTime: number, owner: "me" | "teammate" | "opponent", x: numb
 const detail: SessionDetailResponse = {
   session: {
     id: "m1", kind: "match", startedAt: Date.UTC(2026, 9, 21, 1, 19), durationSeconds: 481, playlistId: 11, playlistName: "Ranked Doubles",
-    arena: "NeoTokyo_Arcade_P", outcome: "win", goalsFor: 2, goalsAgainst: 1, overtime: true, forfeit: false, leftSettled: false, source: "live", partied: true,
+    arena: "NeoTokyo_Arcade_P", outcome: "win", goalsFor: 2, goalsAgainst: 1, overtime: true, forfeit: false, leftSettled: false, teammatesLeft: false, source: "live", partied: true,
     queueWarmup: false, gameSpeed: null, gameSpeedSource: null, me: { score: 700, goals: 2, shots: 4, assists: 0, saves: 1, touches: 40, demos: 0, team: 1 },
     touchShare: 0.55, mvp: true, replay: null, teammates: ["Pat"], pack: null, playSessionId: null, note: null, endedAt: 0, pausedSeconds: 0,
   },
@@ -112,6 +112,13 @@ describe("a match I left early", () => {
     Object.assign(liveApi, { patchSession });
     await userEvent.click(screen.getByRole("button", { name: "Count as left early" }));
     expect(patchSession).toHaveBeenCalledWith("m1", { leftSettled: false });
+  });
+
+  it("after all my teammates had left, it counts by itself and says why", async () => {
+    renderMatch(undefined, { ...left, session: { ...left.session, outcome: "loss", teammatesLeft: true } });
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Loss 0–3");
+    expect(screen.getByText(/after all your teammates had, so it counts as a loss/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Count/ })).toBeNull();
   });
 
   it("isn't offered for a tied score or a match played to the end", async () => {

@@ -33,6 +33,7 @@ const match = (over: Partial<SessionListItem>): SessionListItem => ({
   overtime: true,
   forfeit: false,
   leftSettled: false,
+  teammatesLeft: false,
   source: "live",
   partied: true,
   queueWarmup: false,

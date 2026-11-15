@@ -802,6 +802,18 @@ export class Sessionizer {
       if (b.ended && b.winnerTeam !== null && myTeam !== null) outcome = b.winnerTeam === myTeam ? "win" : "loss";
       else if (!b.ended && !endOfInput) outcome = "abandoned";
     }
+    // Left early, but the last of my team: my teammates had all left before me
+    // (Ranked 3s, 2026-11-15: 0–3, one left at 4:42, the other at 2:33, me a
+    // second later). The game sends no MatchEnded; the score decides, unless tied.
+    let teammatesLeft = false;
+    if (outcome === "abandoned" && myTeam !== null && b.scores && b.scores[0] !== b.scores[1]) {
+      const mates = players.filter((p) => !p.isMe && p.team === myTeam);
+      if (mates.length > 0 && mates.every((p) => p.leftAt !== null)) {
+        teammatesLeft = true;
+        const [blue, orange] = b.scores;
+        outcome = (myTeam === 0 ? blue > orange : orange > blue) ? "win" : "loss";
+      }
+    }
     const playback = b.kind === "replay" ? replayPlayback(b) : null;
     if (b.kind === "replay") {
       // Seeks can record later play before earlier play.
@@ -858,6 +870,7 @@ export class Sessionizer {
       pausedSeconds: b.pausedMs / 1000,
       source: "live",
       forfeit: b.forfeit || playback?.endReason === "forfeit",
+      teammatesLeft,
       playback,
       boostPickups: b.boostPickups,
       players,

@@ -3,7 +3,7 @@ import { matchMetrics, practiceSummary } from "@rl/metrics";
 import { beforeAll, describe, expect, it } from "vitest";
 import { ingestRecording } from "../src/ingest.ts";
 import type { Session } from "@rl/domain";
-import { allFixtures, fixture, ME, spliceRecording, TEAMMATE } from "./fixtures.ts";
+import { allFixtures, fixture, fixtureLines, ME, spliceRecording, TEAMMATE, writeRecording } from "./fixtures.ts";
 
 /**
  * Known truths from the spike sessions (2026-10-21..23): scorelines noted at
@@ -350,6 +350,24 @@ describe("casual matches", () => {
     const [m] = (await ingestRecording(fixture("casual-snow-day"), config)).sessions.filter((s) => s.kind === "match");
     expect([m!.playlistId, m!.teamSize, m!.arena]).toEqual([15, 3, "eurostadium_snownight_p"]);
     expect(PLAYLISTS[15]?.name).toBe("Casual Snow Day");
+  });
+
+  it("leaving after all my teammates had counts as the score shows, not as left early (2026-11-15)", async () => {
+    // Ranked 3s: one teammate left at 4:42, the other at 2:33 down 0–3, and I left a second later; no MatchEnded.
+    const [m] = (await ingestRecording(fixture("left-after-teammates"), config)).sessions.filter((s) => s.kind === "match");
+    expect([m!.outcome, m!.teammatesLeft, m!.scoreBlue, m!.scoreOrange, m!.myTeam]).toEqual(["loss", true, 0, 3, 0]);
+    expect(m!.players.filter((p) => p.team === 0 && !p.isMe).every((p) => p.leftAt !== null)).toBe(true);
+  });
+
+  it("leaving with a teammate still there stays left early", async () => {
+    // The same match, cut before the second teammate left at 2:33 (as if I'd left first).
+    const all = fixtureLines("left-after-teammates");
+    const second = all.findIndex((l, i) => l.includes('"PlayerLeft"') && all.slice(0, i).some((x) => x.includes('"PlayerLeft"')));
+    const at = (JSON.parse(all[second - 1]!) as { receivedAt: number }).receivedAt;
+    const destroyed = all.find((l) => l.includes('"MatchDestroyed"'))!.replace(/"receivedAt":\d+/, `"receivedAt":${at + 1000}`);
+    const file = writeRecording([...all.slice(0, second), destroyed]);
+    const [m] = (await ingestRecording(file, config)).sessions.filter((s) => s.kind === "match");
+    expect([m!.outcome, m!.teammatesLeft]).toEqual(["abandoned", false]);
   });
 
   it("Honor Duel (playlist 53, a limited-time 1v1) is kept with casual off, as an extra mode (2026-11-15)", async () => {

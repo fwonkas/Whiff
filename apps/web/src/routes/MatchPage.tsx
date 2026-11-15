@@ -182,6 +182,9 @@ function LeftEarly({ session: s }: { session: SessionDetailResponse["session"] }
   const patch = usePatchSession();
   const set = (leftSettled: boolean) => patch.mutate({ id: s.id, body: { leftSettled } });
   const failed = patch.isError ? <span className={styles.leftEarlyError}> Couldn’t change it: {patch.error.message}</span> : null;
+  if (s.teammatesLeft) {
+    return <p className={styles.leftEarly}>You left before the end, after all your teammates had, so it counts as a {s.outcome === "win" ? "win" : "loss"}.</p>;
+  }
   if (s.leftSettled) {
     return (
       <p className={styles.leftEarly}>

@@ -142,7 +142,7 @@ The API's behavior differs from its documentation in ways that matter. Each rule
 - `BallHit` repeats within one contact (collapsed within 100 ms). `CrossbarHit` repeats while the ball or puck rests on the bar (collapsed within 500 ms).
 - The clock counts up in overtime and freeplay, and down per shot in training.
 - Final stats come from the `MatchEnded` snapshot: after it, casual lobbies show the next match's GUID and Snow Day resets the score to 0–0.
-- A match you leave ends in `MatchDestroyed` with no `MatchEnded`, and it's recorded as abandoned.
+- A match you leave ends in `MatchDestroyed` with no `MatchEnded`, and it's recorded as abandoned. Two exceptions count the score instead (not when tied): every teammate of mine had a `PlayerLeft` before me (`teammatesLeft`, decided in the sessionizer; `left-after-teammates` fixture), or I mark it on the match page as left after the result was settled (`leftSettled`, `StatsDb.setLeftSettled`, kept across re-ingest).
 - Bots all share `PrimaryId` `Unknown|0|0`.
 - Private matches are playlist 6 and get their own `MatchGuid`, like online ones. They have no fixed team size, so it's read from the lobby. They're listed but left out of records, trends and splits, as are extra modes (Hoops 27, Rumble 28, Dropshot 29, Snow Day 30) and limited-time modes such as Spooky Cube (playlist 67, 3v3). Filtering by playlist includes them. Tournaments (playlist 34) have no fixed size either; they count as standard play at their measured size.
 - In training, every attempt ends in one `GoalScored`, made or missed. The outcome comes from the team score change, which also covers defense packs.

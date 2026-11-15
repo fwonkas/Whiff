@@ -58,11 +58,17 @@ describe("StatsDb", () => {
 
 describe("a match I left after its result was settled", () => {
   // Ranked 3s, 2026-11-15: one teammate left at 4:42, the other at 2:33 down 0–3, and I left a second later.
-  // The game sends no MatchEnded, so it's "left early" until I say the result was settled.
+  // That one counts as a loss by itself (the sessionizer test); as if a teammate had stayed, it's "left early"
+  // until I say the result was settled.
+  const leftEarly = async () => {
+    const [m] = (await ingestRecording(fixture("left-after-teammates"), config)).sessions.filter((s) => s.kind === "match");
+    return [{ ...m!, outcome: "abandoned" as const, teammatesLeft: false }];
+  };
+
   it("counts as the result its score shows, survives re-ingest, and can go back", async () => {
     const db = new StatsDb(":memory:");
-    const [m] = (await ingestRecording(fixture("left-after-teammates"), config)).sessions.filter((s) => s.kind === "match");
-    expect([m!.outcome, m!.scoreBlue, m!.scoreOrange, m!.myTeam]).toEqual(["abandoned", 0, 3, 0]);
+    const [m] = await leftEarly();
+    expect([m!.scoreBlue, m!.scoreOrange, m!.myTeam]).toEqual([0, 3, 0]);
     db.saveSession(m!);
     expect(db.setLeftSettled(m!.id, true)).toBe("ok");
     expect([db.loadSession(m!.id)!.outcome, db.loadSession(m!.id)!.leftSettled]).toEqual(["loss", true]);
@@ -74,7 +80,7 @@ describe("a match I left after its result was settled", () => {
 
   it("through the API: the page, the list and the record all follow it", async () => {
     const db = new StatsDb(":memory:");
-    const [m] = (await ingestRecording(fixture("left-after-teammates"), config)).sessions.filter((s) => s.kind === "match");
+    const [m] = await leftEarly();
     db.saveSession(m!);
     const api = createApi({ service: new StatsService(db), gameConnected: () => false });
     const get = async (path: string) => (await api.request(path)).json() as Promise<{ session?: { outcome: string }; items?: { outcome: string }[] }>;
@@ -90,7 +96,7 @@ describe("a match I left after its result was settled", () => {
 
   it("is only for a match left early with a score that settles something", async () => {
     const db = new StatsDb(":memory:");
-    const [m] = (await ingestRecording(fixture("left-after-teammates"), config)).sessions.filter((s) => s.kind === "match");
+    const [m] = await leftEarly();
     db.saveSession({ ...m!, scoreOrange: 0 });
     expect(db.setLeftSettled(m!.id, true)).toBe("tied");
     db.saveSession({ ...m!, outcome: "loss" });
