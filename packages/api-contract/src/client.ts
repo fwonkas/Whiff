@@ -1,5 +1,5 @@
 import type { PatchSessionBody, PlaySessionsQuery, PutPackBody, SessionsQuery, SummaryQuery, TrendsQuery } from "./queries.ts";
-import type { BallchasingTestResponse, ConfigPatch, ConfigPatchResponse, ConfigResponse, MeCandidate, OpenTarget, TeammateSuggestion } from "./config.ts";
+import type { AppUpdateResponse, BallchasingTestResponse, ConfigPatch, ConfigPatchResponse, ConfigResponse, MeCandidate, OpenTarget, TeammateSuggestion } from "./config.ts";
 import type { ReplayActionResponse, ReplaysResponse, BallchasingFetchResponse, LaunchGameResponse, ReplayGotoResponse, ReplayAnalysisResponse, ReviewResponse, SettingsResponse } from "./responses.ts";
 import type {
   HealthResponse,
@@ -97,6 +97,10 @@ export function createApiClient(baseUrl = "", fetchImpl: typeof fetch = (...a) =
     pickFolder: (title: string, defaultPath?: string) => request<{ ok: true; path: string | null }>("POST", "/api/config/pick-folder", { title, defaultPath }),
     restartApp: () => request<{ ok: true }>("POST", "/api/app/restart"),
     openInApp: (what: OpenTarget) => request<{ ok: true }>("POST", "/api/app/open", { what }),
+    /** The desktop app's update, if one was found. */
+    appUpdate: () => get<AppUpdateResponse>("/api/app/update"),
+    /** Download it if needed, install it and restart. */
+    installUpdate: () => request<{ ok: true }>("POST", "/api/app/update"),
   };
 }
 export type ApiClient = ReturnType<typeof createApiClient>;

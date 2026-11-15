@@ -86,6 +86,12 @@ describe("settings", () => {
     expect((await api.config()).ballchasingUploads.casual.enabled).toBe(true);
   });
 
+  it("has no app update to offer outside the desktop app", async () => {
+    const { api } = await start({});
+    expect(await api.appUpdate()).toEqual({ update: null, canInstall: false });
+    await expect(api.installUpdate()).rejects.toThrow();
+  });
+
   it("moves past matches into With teammates when a teammate is added", async () => {
     const { api } = await start({});
     expect((await api.summary({})).partied.wins + (await api.summary({})).partied.losses).toBe(0);

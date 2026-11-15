@@ -23,3 +23,33 @@
   font-size: 14px;
   font-weight: 400;
 }
+/* Like the tray icon's update badge: orange. A button in the desktop app, a label elsewhere. */
+.update {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px 10px;
+  border: 1px solid var(--warn-border);
+  border-radius: 999px;
+  background: var(--mvp-bg);
+  color: var(--mvp-fg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+button.update {
+  cursor: pointer;
+}
+button.update:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+button.update:disabled {
+  cursor: progress;
+  opacity: 0.8;
+}
+button.update:focus-visible {
+  outline: 2px solid var(--us);
+  outline-offset: 2px;
+}

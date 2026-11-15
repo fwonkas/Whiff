@@ -440,6 +440,8 @@ export async function startCollector(opts: CollectorOptions): Promise<RunningCol
           pickFolder: opts.desktop ? (title, defaultPath) => opts.desktop!.pickFolder(title, defaultPath) : undefined,
           restart: opts.desktop ? () => opts.desktop!.restart() : undefined,
           open: opts.desktop ? (what) => opts.desktop!.open(what) : undefined,
+          update: opts.desktop ? () => opts.desktop!.update() : undefined,
+          installUpdate: opts.desktop ? () => opts.desktop!.installUpdate() : undefined,
         }
       : undefined,
     gameConnected: () => gameConnected,

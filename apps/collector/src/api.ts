@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Hono, type Context } from "hono";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { z } from "zod";
-import { OpenTarget, type ReplayActionResponse, type ReplaysResponse, type BallchasingFetchResponse, type BallchasingTestResponse, ConfigPatch, type ConfigPatchResponse, type ConfigResponse, type TeammateSuggestion, type MeCandidate, PatchSessionBody, PlaySessionsQuery, PutPackBody, ReplayGotoBody, type LaunchGameResponse, type ReplayAnalysisResponse, type ReplayGotoResponse, type SettingsResponse, SessionsQuery, SummaryQuery, TrendsQuery, type HealthResponse } from "@rl/api-contract";
+import { OpenTarget, type AppUpdate, type AppUpdateResponse, type ReplayActionResponse, type ReplaysResponse, type BallchasingFetchResponse, type BallchasingTestResponse, ConfigPatch, type ConfigPatchResponse, type ConfigResponse, type TeammateSuggestion, type MeCandidate, PatchSessionBody, PlaySessionsQuery, PutPackBody, ReplayGotoBody, type LaunchGameResponse, type ReplayAnalysisResponse, type ReplayGotoResponse, type SettingsResponse, SessionsQuery, SummaryQuery, TrendsQuery, type HealthResponse } from "@rl/api-contract";
 import type { StatsService } from "./service.ts";
 
 export interface ApiOptions {
@@ -44,6 +44,8 @@ export interface ApiOptions {
     pickFolder?: (title: string, defaultPath?: string) => Promise<string | null>;
     restart?: () => void;
     open?: (what: OpenTarget) => void;
+    update?: () => AppUpdate | null;
+    installUpdate?: () => void;
   };
 }
 
@@ -159,6 +161,16 @@ export function createApi({ service, gameConnected, webRoot, replayGoto, replayW
     if (!body.success) return invalid(c, body.error);
     config.open(body.data.what);
     return c.json({ ok: true });
+  });
+  app.get("/api/app/update", (c) =>
+    c.json({ update: config?.update?.() ?? null, canInstall: !!config?.installUpdate && fromThisPc(c) } satisfies AppUpdateResponse),
+  );
+  app.post("/api/app/update", (c) => {
+    if (!config?.installUpdate) return c.json({ ok: false, reason: "only the desktop app updates itself" }, 503);
+    if (!fromThisPc(c)) return notHere(c);
+    if (!config.update?.()) return c.json({ ok: false, reason: "no update found" }, 409);
+    config.installUpdate();
+    return c.json({ ok: true }, 202);
   });
   app.post("/api/app/restart", (c) => {
     if (!config?.restart) return c.json({ ok: false, reason: "only the desktop app can restart itself" }, 503);

@@ -3,7 +3,7 @@ import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { DEFAULT_UI, DEFAULT_UPLOAD_RULES, type ApiClient, type ConfigPatch, type ConfigResponse, type ReplaysResponse } from "@rl/api-contract";
+import { DEFAULT_UI, DEFAULT_UPLOAD_RULES, type ApiClient, type AppUpdateResponse, type ConfigPatch, type ConfigResponse, type ReplaysResponse } from "@rl/api-contract";
 import { ApiProvider } from "../lib/api.tsx";
 import { makeRouter } from "../router.tsx";
 import { replaysData } from "./replays.fixture.ts";
@@ -51,7 +51,7 @@ const config: ConfigResponse = {
   paths: { settingsFile: "C:\\cfg.json", logFile: "C:\\collector.log", dataDir: "C:\\data", dashboardUrl: "http://localhost:49200" },
 };
 
-function renderAt(url: string, extra: { canQuitGame?: boolean; replays?: ReplaysResponse } = {}) {
+function renderAt(url: string, extra: { canQuitGame?: boolean; replays?: ReplaysResponse; update?: AppUpdateResponse } = {}) {
   let current = config;
   const api = {
     settings: vi.fn(async () => ({ replayLeadSeconds: 10, canLaunchGame: false, canQuitGame: extra.canQuitGame ?? false, replayAgainShortcut: null, ballchasing: false })),
@@ -73,6 +73,8 @@ function renderAt(url: string, extra: { canQuitGame?: boolean; replays?: Replays
     setBackfillQuit: vi.fn(async () => ({ ok: true })),
     fetchMissingFromBallchasing: vi.fn(async () => ({ ok: true })),
     openInApp: vi.fn(async () => ({ ok: true })),
+    appUpdate: vi.fn(async () => extra.update ?? { update: null, canInstall: true }),
+    installUpdate: vi.fn(async () => ({ ok: true })),
     teammateSuggestions: vi.fn(async () => [{ primaryId: "Epic|teammate|0", name: "Teammate", matches: 9, lastPlayedAt: Date.now(), known: false }]),
   } as unknown as ApiClient;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -182,6 +184,28 @@ describe("About", () => {
     expect(screen.getByText(/vibe\s+coded/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "github.com/fwonkas/Whiff" })).toHaveAttribute("href", "https://github.com/fwonkas/Whiff");
     expect(about).toHaveAttribute("aria-current", "page");
+    // No update found: no badge.
+    expect(screen.queryByText("Update available")).toBeNull();
+  });
+
+  it("offers a found update after the version: clicking downloads, installs and restarts", async () => {
+    const { api } = renderAt("/about", { update: { update: { version: "9.9.9", state: "downloading", installing: false }, canInstall: true } });
+    const badge = await screen.findByRole("button", { name: "Update available" });
+    expect(badge).toHaveAttribute("title", "Download and install Whiff 9.9.9, then restart Whiff");
+    await userEvent.click(badge);
+    expect(api.installUpdate).toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: "Updating…" })).toBeDisabled();
+  });
+
+  it("says so when it's downloaded already", async () => {
+    renderAt("/about", { update: { update: { version: "9.9.9", state: "ready", installing: false }, canInstall: true } });
+    expect(await screen.findByRole("button", { name: "Update available" })).toHaveAttribute("title", "Install Whiff 9.9.9 and restart Whiff");
+  });
+
+  it("is only a label on another device", async () => {
+    renderAt("/about", { update: { update: { version: "9.9.9", state: "ready", installing: false }, canInstall: false } });
+    expect(await screen.findByText("Update available")).toHaveAttribute("title", "Whiff 9.9.9 can be installed from the desktop app.");
+    expect(screen.queryByRole("button", { name: "Update available" })).toBeNull();
   });
 });
 

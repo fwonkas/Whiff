@@ -11,6 +11,7 @@ import {
   UiSettings,
   type ConfigResponse,
   type OpenTarget,
+  type AppUpdate,
   type ShortcutAction,
 } from "@rl/api-contract";
 import { loadConfig } from "./config.ts";
@@ -35,6 +36,10 @@ export interface DesktopHooks {
   open(what: OpenTarget): void;
   /** After the file changed: re-register shortcuts, refresh the tray. */
   configChanged(keys: string[]): void;
+  /** A newer version found by the update check, if any. */
+  update(): AppUpdate | null;
+  /** Download it if needed, install it and restart. */
+  installUpdate(): void;
 }
 
 export function readSettingsFile(path: string): Record<string, unknown> {

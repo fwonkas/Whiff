@@ -810,6 +810,8 @@ async function offerBackfill() {
 
 /** The version downloaded and ready to install, if any. */
 let updateReady: string | null = null;
+/** A newer version the check found (downloading, or ready once updateReady is set). */
+let updateFound: string | null = null;
 let updateRun: Promise<void> | null = null;
 /** The user asked to update: restart into it as soon as it's downloaded. */
 let restartWhenReady = false;
@@ -823,6 +825,9 @@ async function getUpdater() {
     autoUpdater.autoDownload = true;
     // quit() decides: it installs a downloaded update itself.
     autoUpdater.autoInstallOnAppQuit = false;
+    autoUpdater.on("update-available", (info) => {
+      updateFound = info.version;
+    });
     autoUpdater.on("update-downloaded", (info) => {
       updateReady = info.version;
       log(`update ${info.version} downloaded`);
@@ -859,6 +864,7 @@ async function checkForUpdates(fromMenu: boolean) {
       await result.downloadPromise;
     } catch (e) {
       log(`update check failed: ${String(e)}`);
+      if (!updateReady) updateFound = null;
       if (restartWhenReady) {
         restartWhenReady = false;
         await dialog.showMessageBox({ type: "error", title: APP_NAME, message: "Couldn't update Whiff.", detail: String(e) });
@@ -931,6 +937,12 @@ const desktopHooks: DesktopHooks = {
     if (keys.includes("shortcuts")) registerShortcuts();
     refreshTray();
   },
+  update() {
+    const version = updateReady ?? updateFound;
+    return version ? { version, state: updateReady ? "ready" : "downloading", installing: restartWhenReady } : null;
+  },
+  // The same as the tray's Check for updates: download if needed, install, restart.
+  installUpdate: () => void checkForUpdates(true),
 };
 
 /**

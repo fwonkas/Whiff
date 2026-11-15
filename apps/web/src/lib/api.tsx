@@ -32,6 +32,7 @@ export const keys = {
   replays: () => ["rl", "replays"] as const,
   teammateSuggestions: () => ["rl", "config", "teammates"] as const,
   meCandidates: () => ["rl", "config", "me-candidates"] as const,
+  appUpdate: () => ["rl", "app-update"] as const,
 };
 
 /** Sessions, newest first, a page at a time (cursor = the oldest start time so far). */
@@ -209,6 +210,23 @@ export function useTestBallchasing() {
 export function usePickFolder() {
   const api = useApi();
   return useMutation({ mutationFn: ({ title, defaultPath }: { title: string; defaultPath?: string }) => api.pickFolder(title, defaultPath).then((r) => r.path) });
+}
+
+/** The desktop app's update, if its check found one. Polls quickly while it's being installed. */
+export function useAppUpdate() {
+  const api = useApi();
+  return useQuery({
+    queryKey: keys.appUpdate(),
+    queryFn: () => api.appUpdate(),
+    refetchInterval: (q) => (q.state.data?.update?.installing ? 2_000 : 60_000),
+  });
+}
+
+/** Download the update if needed, install it and restart the app. */
+export function useInstallUpdate() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: () => api.installUpdate(), onSettled: () => qc.invalidateQueries({ queryKey: keys.appUpdate() }) });
 }
 
 export function useRestartApp() {

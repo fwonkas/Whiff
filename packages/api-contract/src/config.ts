@@ -205,6 +205,20 @@ export interface ConfigResponse {
 }
 
 /** "taskbarSettings": Windows Settings → Personalization → Taskbar, where tray icons are shown or hidden. */
+/** A newer version of the desktop app, found by its update check. */
+export interface AppUpdate {
+  version: string;
+  /** Downloading in the background, or downloaded and ready to install. */
+  state: "downloading" | "ready";
+  /** Asked to install: Whiff restarts into it once it's downloaded. */
+  installing: boolean;
+}
+export interface AppUpdateResponse {
+  update: AppUpdate | null;
+  /** Installing can be started only from this PC, in the desktop app. */
+  canInstall: boolean;
+}
+
 export const OpenTarget = z.enum(["settingsFile", "logFile", "dataDir", "browser", "taskbarSettings"]);
 export type OpenTarget = z.infer<typeof OpenTarget>;
 

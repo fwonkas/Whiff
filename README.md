@@ -102,7 +102,7 @@ With an API key from [ballchasing.com/upload](https://ballchasing.com/upload) (S
 
 ## Updating
 
-Whiff checks for updates when it starts and every few hours, and downloads a new version in the background. When one is ready, the tray icon gets an orange badge: choose **Install update and restart** in the tray menu, or it installs the next time you quit Whiff. **Check for updates** in the tray menu checks now and, if there's a new version, downloads it, installs it and restarts Whiff. You can also install a newer `Whiff-Setup-<version>.exe` over the old one. Your settings and data stay.
+Whiff checks for updates when it starts and every few hours, and downloads a new version in the background. When one is ready, the tray icon gets an orange badge: choose **Install update and restart** in the tray menu, or it installs the next time you quit Whiff. **Check for updates** in the tray menu checks now and, if there's a new version, downloads it, installs it and restarts Whiff. The About page shows **Update available** next to the version once one is found; clicking it does the same. You can also install a newer `Whiff-Setup-<version>.exe` over the old one. Your settings and data stay.
 
 ## Uninstalling
 
