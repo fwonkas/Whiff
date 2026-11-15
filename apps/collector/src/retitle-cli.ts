@@ -1,9 +1,8 @@
-import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { BallchasingClient, BallchasingError } from "./ballchasing.ts";
-import { loadConfig, paths, repoConfigPath } from "./config.ts";
+import { cliConfigPath, loadConfig, paths } from "./config.ts";
 import { listSavedReplays, replayDirsIn } from "./replay-files.ts";
 import { pacedFetch, planRetitle, type Retitle } from "./retitle.ts";
 
@@ -26,8 +25,7 @@ const opt = (name: string) => {
 };
 const apply = args.includes("--apply");
 const perHour = Number(opt("--per-hour") ?? 4800);
-const appConfig = process.env.APPDATA ? join(process.env.APPDATA, "Whiff", "whiff.config.json") : null;
-const configPath = opt("--config") ?? (appConfig && existsSync(appConfig) ? appConfig : repoConfigPath());
+const configPath = cliConfigPath(args);
 
 const cfg = loadConfig(configPath);
 if (!cfg.ballchasingToken) {

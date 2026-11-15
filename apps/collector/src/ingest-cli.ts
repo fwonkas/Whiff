@@ -1,21 +1,25 @@
 import { readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { PLAYLISTS } from "@rl/schema";
-import { loadConfig, paths } from "./config.ts";
+import { cliConfigPath, loadConfig, paths } from "./config.ts";
 import { StatsDb } from "./db.ts";
 import { ingestRecording } from "./ingest.ts";
 import type { Session } from "@rl/domain";
 
 /**
  * Backfill: ingest recordings into the database.
- *   npm run ingest -- <file or folder> [...more] [--force]
+ *   npm run ingest -- <file or folder> [...more] [--force] [--config <file>]
  * Folders are searched recursively for *.ndjson and *.ndjson.gz.
  * Files already ingested (same size and modified time) are skipped unless --force.
+ * Settings (your player ID, the data folder) come from the installed app's
+ * settings file unless --config says otherwise (cliConfigPath). Without a
+ * player ID it stops: matches would be saved with nobody marked as you.
  */
 
 const args = process.argv.slice(2);
 const force = args.includes("--force");
-const targets = args.filter((a) => !a.startsWith("--"));
+const configAt = args.indexOf("--config");
+const targets = args.filter((a, i) => !a.startsWith("--") && !(configAt >= 0 && i === configAt + 1));
 if (!targets.length) {
   console.error("Usage: npm run ingest -- <recording file or folder> [...] [--force]");
   process.exit(1);
@@ -32,8 +36,14 @@ const find = (p: string): string[] => {
   });
 };
 
-const cfg = loadConfig();
-if (!cfg.myPrimaryIds.length) console.warn("Warning: myPrimaryIds is empty in the config, so no player is marked as you.");
+const configPath = cliConfigPath(args);
+const cfg = loadConfig(configPath);
+console.log(`Settings: ${configPath}\nDatabase: ${paths(cfg).db}`);
+if (!cfg.myPrimaryIds.length) {
+  console.error("No player ID (myPrimaryIds) in those settings, so no player would be marked as you. Nothing was imported.");
+  console.error("Point at the right settings file with --config <file>.");
+  process.exit(1);
+}
 const db = new StatsDb(paths(cfg).db);
 db.setRecordCasual(cfg.recordCasual ?? false);
 

@@ -79,6 +79,19 @@ export function repoConfigPath(root = findRepoRoot()): string {
   return !existsSync(path) && existsSync(old) ? old : path;
 }
 
+/**
+ * The settings file for a command run from the repo (ingest, retitle):
+ * `--config <file>` if given, else the installed desktop app's
+ * (%APPDATA%\Whiff\whiff.config.json), else the repo's. The repo's alone
+ * would miss the player ID and data folder the app keeps.
+ */
+export function cliConfigPath(args: string[], env = process.env): string {
+  const i = args.indexOf("--config");
+  if (i >= 0 && args[i + 1]) return resolve(env.INIT_CWD ?? process.cwd(), args[i + 1]!);
+  const app = env.APPDATA ? join(env.APPDATA, "Whiff", CONFIG_FILE) : null;
+  return app && existsSync(app) ? app : repoConfigPath();
+}
+
 export function loadConfig(path = repoConfigPath()): AppConfig {
   const raw = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {};
   const cfg = ConfigFile.parse(raw);
