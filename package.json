@@ -17,6 +17,7 @@
     "build": "npm run build -w @rl/web",
     "collect": "npm run start -w @rl/collector",
     "ingest": "npm run ingest -w @rl/collector --",
+    "retitle": "npm run retitle -w @rl/collector --",
     "mock": "npm run start -w @rl/mock-game --",
     "replay-fixture": "tsx apps/collector/src/subtr/fixture-cli.ts",
     "test": "vitest run",

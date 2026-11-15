@@ -26,6 +26,15 @@ export const DOWNLOAD_GAP_MS = 1_100;
 export interface BallchasingListItem {
   id: string;
   rocket_league_id?: string;
+  match_guid?: string;
+  /** The replay's title on ballchasing (the name typed in the game, unless changed). */
+  replay_title?: string;
+  title?: string;
+  playlist_name?: string;
+  /** Online, Private, Tournament… */
+  match_type?: string;
+  /** Seconds. */
+  duration?: number;
   map_code?: string;
   date?: string;
   date_has_tz?: boolean;
@@ -271,8 +280,12 @@ const pad = (n: number) => String(n).padStart(2, "0");
 export function replayTitle(m: { playlistId: number | null; kind: UploadKind | null; startedAt: number | null }): string | null {
   if (m.startedAt === null) return null;
   const known = m.playlistId !== null ? PLAYLISTS[m.playlistId]?.name : undefined;
-  const name = known ?? (m.kind === "tournament" ? "Tournament" : m.kind === "private" ? "Private Match" : "Online Match");
-  const d = new Date(m.startedAt);
+  return titleFor(known ?? (m.kind === "tournament" ? "Tournament" : m.kind === "private" ? "Private Match" : "Online Match"), m.startedAt);
+}
+
+/** "<name> YYYY-MM-DD HH:MM", the time in this PC's time zone. */
+export function titleFor(name: string, startedAt: number): string {
+  const d = new Date(startedAt);
   return `${name} ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 

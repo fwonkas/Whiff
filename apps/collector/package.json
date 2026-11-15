@@ -9,6 +9,7 @@
   "scripts": {
     "start": "tsx --no-warnings=ExperimentalWarning src/main.ts",
     "ingest": "tsx --no-warnings=ExperimentalWarning src/ingest-cli.ts",
+    "retitle": "tsx --no-warnings=ExperimentalWarning src/retitle-cli.ts",
     "dev": "tsx watch --no-warnings=ExperimentalWarning src/main.ts"
   },
   "dependencies": {
