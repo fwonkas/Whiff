@@ -36,3 +36,5 @@ On Windows, if PowerShell blocks `npm`, use `npm.cmd` or run `Set-ExecutionPolic
 ## Working together
 
 Another Claude session also pushes to `main`, mostly plumbing. Run `git pull` before starting, keep commits focused and don't rewrite pushed history.
+
+Don't bump the version in `apps/desktop/package.json`: Joe bumps it himself when he builds or releases (`npm run release -- patch`). Don't start GitHub builds unless he asks.
