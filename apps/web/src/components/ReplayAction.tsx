@@ -41,7 +41,7 @@ export function ReplayAction({ replay, what, compact = false }: { replay: Sessio
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
           <path d="M4 2.5v11l9-5.5z" fill="currentColor" />
         </svg>
-        {!compact && <span>{watch.isPending ? "Opening…" : watch.data?.ok ? (watch.data.status === "launching" ? "Starting…" : "Opened") : "Watch"}</span>}
+        {!compact && <span>{watch.isPending ? "Opening…" : "Watch"}</span>}
       </button>
     );
   }
