@@ -468,7 +468,7 @@ export async function startCollector(opts: CollectorOptions): Promise<RunningCol
     webRoot: opts.webRoot,
     replayGoto: (b) =>
       withLaunch(b.replayId, b.launch ?? false, () => replayControl() ?? remote.goto(b.replayId, b.frame, b.leadSeconds ?? replayLeadSeconds, Date.now(), b.camera)),
-    replayWatch: (replayId, launch) => withLaunch(replayId, launch, () => replayControl() ?? remote.watch(replayId)),
+    replayWatch: (replayId, launch) => withLaunch(replayId, launch, () => replayControl() ?? remote.watch(replayId, Date.now())),
     deleteMatch: (id) => {
       const ok = db.deleteMatch(id);
       if (ok) {

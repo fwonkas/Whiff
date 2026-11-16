@@ -248,6 +248,23 @@ export class StatsDb {
   }
 
   /**
+   * Re-ingesting a recording: sessions saved from it before (started within
+   * its span) that it no longer produces go, e.g. after a sessionizer fix.
+   * Matches rebuilt from replays (match-replay-*) are the database's own and stay.
+   */
+  removeStale(span: { from: number; to: number }, keep: readonly string[]): number {
+    const keepSet = new Set(keep);
+    const rows = this.db
+      .prepare("SELECT id, match_guid FROM sessions WHERE started_at BETWEEN ? AND ? AND id NOT LIKE 'match-replay-%'")
+      .all(span.from, span.to) as { id: string; match_guid: string | null }[];
+    const stale = rows.filter((r) => !keepSet.has(r.id));
+    const del = this.db.prepare("DELETE FROM sessions WHERE id = ?");
+    for (const r of stale) del.run(r.id);
+    for (const g of new Set(stale.map((r) => r.match_guid).filter((g): g is string => g !== null))) this.reconcileReplayMatch(g);
+    return stale.length;
+  }
+
+  /**
    * Casual matches are kept only with the setting on (like the sessionizer):
    * off, no match is rebuilt from a casual replay and any rebuilt before goes;
    * on, the casual replays already played through become matches.

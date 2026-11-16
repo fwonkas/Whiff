@@ -10,6 +10,8 @@ export interface IngestReport {
   connections: GameConnection[];
   messages: number;
   invalid: number;
+  /** First and last receivedAt in the recording, for StatsDb.removeStale. */
+  span: { from: number; to: number } | null;
 }
 
 /** Run one recording (plain or .gz NDJSON) through a fresh sessionizer. */
@@ -20,7 +22,10 @@ export async function ingestRecording(path: string, config: CollectorConfig): Pr
   const connections: GameConnection[] = [];
   let messages = 0;
   let invalid = 0;
+  let span: { from: number; to: number } | null = null;
   for await (const entry of readRecording(path)) {
+    if (span) span.to = Math.max(span.to, entry.receivedAt);
+    else span = { from: entry.receivedAt, to: entry.receivedAt };
     if (entry.kind === "message") {
       messages++;
       s.ingest(entry.receivedAt, entry.msg);
@@ -39,5 +44,5 @@ export async function ingestRecording(path: string, config: CollectorConfig): Pr
   }
   s.flush();
   sessions.sort((a, b) => a.startedAt - b.startedAt);
-  return { sessions, skipped, connections, messages, invalid };
+  return { sessions, skipped, connections, messages, invalid, span };
 }

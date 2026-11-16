@@ -226,6 +226,13 @@ describe("replays", () => {
     expect(live.matchGuid).toBe(r[0]!.matchGuid);
   });
 
+  it("a seek that lands paused at a kickoff (bReplay false, with a Frame) stays in the replay", async () => {
+    // 2026-11-16: scrubbing a replay by hand; four seeks were saved as matches.
+    const r = await sessions("replay-scrub");
+    expect(r.map((s) => s.kind)).toEqual(["replay"]);
+    expect(r[0]!.replayId).toBe("02F14D6E11F1E0BDA5D49AAF1FFD83A0");
+  });
+
   it("each LoadReplay is its own session", async () => {
     expect((await sessions("replay-load")).map((s) => s.replayId?.slice(0, 8))).toEqual([
       "C5024DCC",

@@ -43,6 +43,8 @@ const SEEK_TAKES_MS = 2_000;
 const STOP_GIVE_UP_FRAMES = 15 * REPLAY_FRAMES_PER_SECOND;
 /** Consecutive live (not replay) ticks that mean the replay was left. */
 const LIVE_TICKS_LEFT = 90;
+/** A seek recreates the match within about half a second; longer with no MatchCreated, the replay was left. */
+const REPLAY_LEFT_MS = 3_000;
 
 export type GotoResult = { ok: true; status: "seeking" | "loading" | "open" } | { ok: false; reason: string };
 
@@ -122,6 +124,8 @@ export class ReplayRemote {
   private roster: { guid: string; players: number; shortcut: number } | null = null;
   /** Shortcuts to try for my car until the game's Target names me. */
   private aim: { name: string; candidates: number[]; tried: number; since: number } | null = null;
+  /** The last MatchDestroyed not followed by a MatchCreated: a seek in progress, or the replay was left. */
+  private destroyedAt: number | null = null;
 
   constructor(private readonly events: ReplayRemoteEvents) {}
 
@@ -136,11 +140,11 @@ export class ReplayRemote {
   }
 
   /** Open a replay to watch from the start, without jumping anywhere. Already open: just bring the game forward. */
-  watch(replayId: string): GotoResult {
+  watch(replayId: string, at: number = this.now): GotoResult {
     const id = replayId.toUpperCase();
     this.events.beforeControl?.();
     this.stopAfter = null;
-    if (this.open === id) {
+    if (this.isOpen(id, at)) {
       void this.focus();
       return { ok: true, status: "open" };
     }
@@ -162,7 +166,7 @@ export class ReplayRemote {
     const { replayId: id, target, camera } = j;
     this.events.beforeControl?.();
     this.last = j;
-    if (this.open === id) {
+    if (this.isOpen(id, at)) {
       if (!this.seek(target, camera, at)) return { ok: false, reason: "Rocket League isn't connected" };
       this.arm(j);
       this.playWhenFocused(this.focus());
@@ -176,8 +180,18 @@ export class ReplayRemote {
     return { ok: true, status: "loading" };
   }
 
+  /**
+   * Leaving a replay for the menu sends MatchDestroyed and then nothing (no
+   * ticks), so a match destroyed and not recreated soon after means it's closed.
+   */
+  private isOpen(id: string, at: number): boolean {
+    if (this.open !== null && this.destroyedAt !== null && at - this.destroyedAt > REPLAY_LEFT_MS) this.open = null;
+    return this.open === id;
+  }
+
   ingest(at: number, msg: GameMessage): void {
     this.now = at;
+    if (msg.Event === "MatchCreated" || msg.Event === "ReplayCreated") this.destroyedAt = null;
     switch (msg.Event) {
       case "ReplayCreated": {
         this.open = msg.Data.FileName.toUpperCase();
@@ -200,6 +214,7 @@ export class ReplayRemote {
       case "MatchDestroyed":
         // A seek rebuilds the match: ticks from here on show the new frame.
         this.seekSentAt = null;
+        this.destroyedAt = at;
         return;
       case "GoalReplayStart":
       case "CountdownBegin":
@@ -207,6 +222,7 @@ export class ReplayRemote {
         if (this.stopAfter !== null && this.reached && this.frame !== undefined && this.frame >= this.stopAfter - STOP_FRAME_SLACK) this.stop();
         return;
       case "UpdateState":
+        if (msg.Data.Game.bReplay || msg.Data.Game.Frame !== undefined) this.destroyedAt = null;
         if (this.seekSentAt !== null && at - this.seekSentAt > SEEK_TAKES_MS) this.seekSentAt = null;
         if (msg.Data.Game.bReplay) {
           this.liveTicks = 0;
@@ -236,6 +252,7 @@ export class ReplayRemote {
   /** The game closed. */
   reset(): void {
     this.open = null;
+    this.destroyedAt = null;
     this.pending = null;
     this.stopAfter = null;
     if (this.timer !== null) this.events.clearTimer?.(this.timer);

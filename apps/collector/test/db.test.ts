@@ -33,6 +33,20 @@ describe("StatsDb", () => {
     db.close();
   });
 
+  it("re-ingesting removes sessions the recording no longer produces", async () => {
+    const db = new StatsDb(":memory:");
+    const { sessions, span } = await ingestRecording(fixture("replay-scrub"), config);
+    for (const s of sessions) db.saveSession(s);
+    // What an older sessionizer saved from the same recording: a seek taken for a match.
+    const [replay] = sessions;
+    db.saveSession({ ...replay!, id: `match-${replay!.startedAt + 1000}`, kind: "match", replayId: null, playback: null });
+    const before = (db.db.prepare("SELECT COUNT(*) n FROM sessions").get() as { n: number }).n;
+    expect(db.removeStale(span!, sessions.map((s) => s.id))).toBe(1);
+    expect((db.db.prepare("SELECT COUNT(*) n FROM sessions").get() as { n: number }).n).toBe(before - 1);
+    expect(db.db.prepare("SELECT kind FROM sessions WHERE id NOT LIKE 'match-replay-%'").all()).toEqual([{ kind: "replay" }]);
+    db.close();
+  });
+
   it("keeps user-entered fields (pack code, note) across re-ingest", async () => {
     const db = new StatsDb(":memory:");
     const { sessions } = await ingestRecording(fixture("training-defense-and-shots"), config);

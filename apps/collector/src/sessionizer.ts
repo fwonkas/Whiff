@@ -456,7 +456,9 @@ export class Sessionizer {
 
     if (this.awaitingReplayConfirm && b.kind === "replay") {
       this.awaitingReplayConfirm = false;
-      if (!g.bReplay) {
+      // A replay paused at the cut to a kickoff reports bReplay false, but its
+      // ticks still carry a Frame; live play never does.
+      if (!g.bReplay && g.Frame === undefined) {
         // Not a seek after all: the replay was left and a new match began.
         this.close(b, at);
         const nb = new Builder(at, "match");

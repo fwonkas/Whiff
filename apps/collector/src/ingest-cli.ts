@@ -69,13 +69,14 @@ for (const file of targets.flatMap((t) => find(resolve(base, t)))) {
     console.log(`skip ${file} (already ingested)`);
     continue;
   }
-  const { sessions, skipped, connections, messages, invalid } = await ingestRecording(file, cfg);
+  const { sessions, skipped, connections, messages, invalid, span } = await ingestRecording(file, cfg);
   for (const s of skipped) db.recordSkipped(s);
   for (const s of sessions) db.saveSession(s);
   for (const c of connections) db.saveConnection(c);
+  const removed = span ? db.removeStale(span, sessions.map((s) => s.id)) : 0;
   db.markIngested(file, st.size, st.mtimeMs, sessions.length);
   total += sessions.length;
-  console.log(`${file}: ${messages} messages, ${invalid} unreadable, ${sessions.length} sessions`);
+  console.log(`${file}: ${messages} messages, ${invalid} unreadable, ${sessions.length} sessions${removed ? `, ${removed} no longer in it removed` : ""}`);
   for (const s of sessions) console.log(describe(s));
 }
 console.log(`\nDone: ${total} sessions saved to ${paths(cfg).db}`);

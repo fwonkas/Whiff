@@ -153,6 +153,22 @@ describe("ReplayRemote", () => {
     expect(sent).toHaveLength(2);
   });
 
+  it("loads the replay again after it was left for the menu (MatchDestroyed, then nothing)", () => {
+    const sent: GameCommand[] = [];
+    const r = new ReplayRemote({ send: (c) => (sent.push(c), true) });
+    r.ingest(0, created(REPLAY));
+    const destroyed = { Event: "MatchDestroyed", Data: {} } as GameMessage;
+    const matchCreated = { Event: "MatchCreated", Data: {} } as GameMessage;
+    // A seek: destroyed and recreated at once, still open.
+    r.ingest(1000, destroyed);
+    r.ingest(1500, matchCreated);
+    expect(r.watch(REPLAY, 9000)).toEqual({ ok: true, status: "open" });
+    // Left: destroyed, nothing after.
+    r.ingest(10_000, destroyed);
+    expect(r.watch(REPLAY, 20_000)).toEqual({ ok: true, status: "loading" });
+    expect(sent.at(-1)).toEqual({ Command: "LoadReplay", Data: { FileName: REPLAY } });
+  });
+
   it("says so when the game isn't connected", () => {
     const r = new ReplayRemote({ send: () => false });
     expect(r.goto(REPLAY, 10, 0, 0)).toEqual({ ok: false, reason: "Rocket League isn't connected" });
