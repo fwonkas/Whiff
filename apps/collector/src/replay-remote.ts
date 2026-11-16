@@ -61,6 +61,14 @@ export type ReplayCamera = "mine" | "director" | "keep";
 const POV_FRAME_SLACK = 30;
 const POV_FRAME_AHEAD = 150;
 const POV_AFTER_MS = 3_000;
+/**
+ * After pointing the camera at a shortcut, wait this long for the game's
+ * Target to name my car before trying the next candidate. Once a player has
+ * left, the Stats API renumbers shortcuts but the replay's camera doesn't:
+ * on 2026-11-15 (2s, a teammate gone at 2:41) ticks said I was 1, the
+ * camera's 1 was the departed teammate's empty slot, and the view went Fly.
+ */
+const POV_CHECK_MS = 1_500;
 
 export interface ReplayRemoteEvents {
   send: (cmd: GameCommand) => boolean;
@@ -110,6 +118,10 @@ export class ReplayRemote {
   private now = 0;
   /** A replay opened by watch(): set to normal speed once it opens ("Play all" may have left 2x). */
   private watching: string | null = null;
+  /** My shortcut in the open replay when the most players were in it (before anyone left). */
+  private roster: { guid: string; players: number; shortcut: number } | null = null;
+  /** Shortcuts to try for my car until the game's Target names me. */
+  private aim: { name: string; candidates: number[]; tried: number; since: number } | null = null;
 
   constructor(private readonly events: ReplayRemoteEvents) {}
 
@@ -205,7 +217,9 @@ export class ReplayRemote {
             else if (this.reached && f >= this.stopAfter + STOP_AFTER_GOAL_FRAMES && f <= this.stopAfter + STOP_GIVE_UP_FRAMES) this.stop();
             else if (this.reached && f > this.stopAfter + STOP_GIVE_UP_FRAMES) this.stopAfter = null;
           }
+          this.noteRoster(msg);
           this.maybeSetCamera(at, msg);
+          this.checkAim(at, msg);
         } else if (msg.Data.Game.Frame === undefined && ++this.liveTicks >= LIVE_TICKS_LEFT) {
           // Live play (no replay frame). A replay paused at the cut to a
           // kickoff sends bReplay false too, but with its frame: still open.
@@ -269,6 +283,7 @@ export class ReplayRemote {
       this.seekSentAt = at;
       this.events.log?.(`replay remote: seek to frame ${frame}`);
       this.pov = camera === "keep" ? null : { camera, frame, since: at };
+      this.aim = null;
     }
     return ok;
   }
@@ -284,9 +299,40 @@ export class ReplayRemote {
       this.events.send({ Command: "ChangePOV", Data: { Perspective: "Camera_Director" } });
       return;
     }
+    const mine = this.mine(msg);
+    if (!mine) return void this.events.log?.("replay remote: I'm not in this replay; camera left as is");
+    // The shortcut from before anyone left first (what the camera still uses), then the one ticks show now.
+    const early = this.roster?.guid === msg.Data.MatchGuid ? this.roster.shortcut : undefined;
+    const candidates = [...new Set([early, mine.Shortcut].filter((s): s is number => s !== undefined))];
+    this.aim = { name: mine.Name, candidates, tried: 0, since: at };
+    this.events.send(commands.pov(candidates[0]!, "PlayerView"));
+  }
+
+  private mine(msg: Extract<GameMessage, { Event: "UpdateState" }>) {
     const me = new Set(this.events.me?.() ?? []);
-    const mine = msg.Data.Players.find((p) => me.has(p.PrimaryId));
-    if (mine) this.events.send(commands.pov(mine.Shortcut, "PlayerView"));
-    else this.events.log?.("replay remote: I'm not in this replay; camera left as is");
+    return msg.Data.Players.find((p) => me.has(p.PrimaryId));
+  }
+
+  private noteRoster(msg: Extract<GameMessage, { Event: "UpdateState" }>) {
+    const mine = this.mine(msg);
+    if (!mine) return;
+    const guid = msg.Data.MatchGuid;
+    const players = msg.Data.Players.length;
+    if (this.roster?.guid !== guid || players > this.roster.players) this.roster = { guid, players, shortcut: mine.Shortcut };
+  }
+
+  /** Did the camera land on my car? If not, try the next shortcut, then give up. */
+  private checkAim(at: number, msg: Extract<GameMessage, { Event: "UpdateState" }>) {
+    const aim = this.aim;
+    if (!aim) return;
+    if (msg.Data.Game.Target?.Name === aim.name) return void (this.aim = null);
+    if (at - aim.since < POV_CHECK_MS) return;
+    if (++aim.tried < aim.candidates.length) {
+      aim.since = at;
+      this.events.send(commands.pov(aim.candidates[aim.tried]!, "PlayerView"));
+      return;
+    }
+    this.aim = null;
+    this.events.log?.(`replay remote: the camera didn't attach to my car (tried shortcuts ${aim.candidates.join(", ")})`);
   }
 }

@@ -94,6 +94,53 @@ describe("ReplayRemote", () => {
     expect(sent.at(-1)).toEqual({ Command: "ChangePOV", Data: { Perspective: "Camera_Director" } });
   });
 
+  it("after a player left, points the camera at my car by its shortcut from before, checking where it lands (2026-11-15)", () => {
+    // 2s: my teammate (shortcut 1) left at 2:41; ticks then said I was 1 (I'd been 2), and pointing at 1 left the camera on Fly.
+    const sent: GameCommand[] = [];
+    const logs: string[] = [];
+    const r = new ReplayRemote({ send: (c) => (sent.push(c), true), me: () => ["Epic|me|0"], log: (l) => logs.push(l) });
+    const G = "51C17E4C11F1E0BC52889AAFC25E20E3";
+    const player = (Name: string, Shortcut: number, TeamNum: number, PrimaryId = `Steam|${Shortcut}|0`) => ({ Name, PrimaryId, Shortcut, TeamNum });
+    const tick = (frame: number, players: ReturnType<typeof player>[], target?: string): GameMessage =>
+      ({
+        Event: "UpdateState",
+        Data: {
+          MatchGuid: G,
+          Players: players,
+          Game: {
+            Teams: [], PlaylistId: 11, TimeSeconds: 200, bOvertime: false, Ball: { Speed: 0, TeamNum: 255 }, bReplay: true, bHasWinner: false, Winner: "", Arena: "x",
+            bHasTarget: !!target, ...(target ? { Target: { Name: target, Shortcut: 0, TeamNum: 0 } } : {}), Frame: frame,
+          },
+        },
+      }) as unknown as GameMessage;
+    const me = (s: number) => player("Origami Box", s, 0, "Epic|me|0");
+    const all = [player("Opp A", 5, 1), player("Teammate", 1, 0), me(2), player("Opp B", 6, 1)];
+    const after = [player("Opp A", 5, 1), me(1), player("Opp B", 6, 1)];
+    const destroyed = { Event: "MatchDestroyed", Data: { MatchGuid: G } } as GameMessage;
+    const pov = (s: number) => ({ Command: "ChangePOV", Data: { Focus: String(s), Perspective: "PlayerView" } });
+
+    r.ingest(0, created(REPLAY));
+    r.ingest(100, tick(28, all, "Origami Box")); // the replay opens with everyone in it
+    r.goto(REPLAY, 5148, 5, 200); // lands at 5038
+    r.ingest(300, destroyed);
+    r.ingest(400, tick(5040, after));
+    expect(sent.at(-1)).toEqual(pov(2));
+    r.ingest(900, tick(5045, after, "Origami Box")); // it landed on me: nothing more
+    r.ingest(3000, tick(5100, after, "Origami Box"));
+    expect(sent.at(-1)).toEqual(pov(2));
+
+    // If the early shortcut doesn't take, the current one is tried, then it gives up with a log line.
+    r.goto(REPLAY, 5148, 5, 4000);
+    r.ingest(4100, destroyed);
+    r.ingest(4200, tick(5040, after));
+    expect(sent.at(-1)).toEqual(pov(2));
+    r.ingest(5800, tick(5050, after));
+    expect(sent.at(-1)).toEqual(pov(1));
+    r.ingest(7400, tick(5060, after));
+    expect(sent.at(-1)).toEqual(pov(1));
+    expect(logs.at(-1)).toBe("replay remote: the camera didn't attach to my car (tried shortcuts 2, 1)");
+  });
+
   it("opens a replay to watch from the start at normal speed, without seeking", () => {
     const sent: GameCommand[] = [];
     const r = new ReplayRemote({ send: (c) => (sent.push(c), true) });
