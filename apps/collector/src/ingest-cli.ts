@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { PLAYLISTS } from "@rl/schema";
 import { cliConfigPath, loadConfig, paths } from "./config.ts";
@@ -26,6 +26,12 @@ if (!targets.length) {
 }
 
 const find = (p: string): string[] => {
+  // The collector gzips a finished recording, so a .ndjson path may now be .ndjson.gz.
+  if (!existsSync(p) && existsSync(`${p}.gz`)) p = `${p}.gz`;
+  if (!existsSync(p)) {
+    console.error(`No such file or folder: ${p}`);
+    process.exit(1);
+  }
   const st = statSync(p);
   if (st.isFile()) return [p];
   return readdirSync(p, { withFileTypes: true }).flatMap((d) => {
