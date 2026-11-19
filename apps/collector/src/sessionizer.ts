@@ -208,6 +208,12 @@ export class Sessionizer {
   /** Replay sessions survive seeks, which destroy and recreate the match. */
   private replayDestroyedAt: number | null = null;
   private awaitingReplayConfirm = false;
+  /**
+   * A replay ended by endReplay is still open in the game, on its final frame.
+   * Seeking in it (MatchDestroyed, then MatchCreated) starts a new playback of
+   * it, not a match.
+   */
+  private endedReplay: { replayId: string | null; replayDate: string | null; destroyedAt: number | null } | null = null;
   private deferred: { session: Session; endedAt: number } | null = null;
   private lastAt = 0;
   private me: Set<string>;
@@ -255,12 +261,23 @@ export class Sessionizer {
 
     switch (msg.Event) {
       case "ReplayCreated":
+        this.endedReplay = null;
         if (b) this.close(b, b.destroyedAt ?? at);
         this.current = new Builder(at, "replay", msg.Data.FileName, msg.Data.Date);
         this.replayDestroyedAt = null;
         return;
 
       case "MatchCreated":
+        if (!b && this.endedReplay) {
+          const e = this.endedReplay;
+          this.endedReplay = null;
+          if (e.destroyedAt !== null && at - e.destroyedAt <= REPLAY_RELOAD_WINDOW_MS) {
+            // A seek in the replay left open at its end: a new playback, confirmed (or split) on the next tick.
+            this.current = new Builder(at, "replay", e.replayId, e.replayDate);
+            this.awaitingReplayConfirm = true;
+            return;
+          }
+        }
         if (b?.kind === "replay" && b.destroyedAt !== null && at - b.destroyedAt <= REPLAY_RELOAD_WINDOW_MS) {
           // A seek: same replay continues. Confirmed (or split) on the next tick.
           b.destroyedAt = null;
@@ -274,7 +291,10 @@ export class Sessionizer {
         return;
 
       case "MatchDestroyed":
-        if (!b) return;
+        if (!b) {
+          if (this.endedReplay) this.endedReplay.destroyedAt = at;
+          return;
+        }
         if (b.kind === "replay") {
           b.destroyedAt = at;
           this.replayDestroyedAt = at;
@@ -414,6 +434,7 @@ export class Sessionizer {
     this.current = null;
     this.awaitingReplayConfirm = false;
     this.replayDestroyedAt = null;
+    this.endedReplay = null;
     this.releaseDeferred();
   }
 
@@ -424,7 +445,9 @@ export class Sessionizer {
    */
   endReplay(at: number): void {
     const b = this.current;
-    if (b?.kind === "replay") this.close(b, at);
+    if (b?.kind !== "replay") return;
+    this.close(b, at);
+    this.endedReplay = { replayId: b.replayId, replayDate: b.replayDate, destroyedAt: null };
   }
 
   /** Call at the end of a recording or on shutdown. */

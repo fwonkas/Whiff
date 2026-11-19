@@ -233,6 +233,18 @@ describe("replays", () => {
     expect(r[0]!.replayId).toBe("02F14D6E11F1E0BDA5D49AAF1FFD83A0");
   });
 
+  it("seeking in a replay left open at its end is a new playback, not matches", async () => {
+    // 2026-11-18: "Play all" ended on its last replay (the collector's replay-ended note),
+    // then scrubbing it by hand saved 33 abandoned matches.
+    const r = await sessions("replay-end-seek");
+    expect(r.map((s) => [s.kind, s.replayId?.slice(0, 8)])).toEqual([
+      ["replay", "E3C7EC95"],
+      ["replay", "E3C7EC95"],
+    ]);
+    expect(r[0]!.playback?.complete).toBe(true);
+    expect(r[1]!.playback?.complete).toBe(false);
+  });
+
   it("each LoadReplay is its own session", async () => {
     expect((await sessions("replay-load")).map((s) => s.replayId?.slice(0, 8))).toEqual([
       "C5024DCC",
