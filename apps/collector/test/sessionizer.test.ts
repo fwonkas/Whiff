@@ -245,6 +245,18 @@ describe("replays", () => {
     expect(r[1]!.playback?.complete).toBe(false);
   });
 
+  it("a slow seek (3.1 s from MatchDestroyed to MatchCreated, seen 2026-11-18) stays a replay", async () => {
+    const lines = fixtureLines("replay-end-seek");
+    const at = (l: string) => (JSON.parse(l) as { receivedAt: number }).receivedAt;
+    const ended = lines.findIndex((l) => l.includes('"replay-ended"'));
+    const d = lines.findIndex((l, i) => i > ended && l.includes('"MatchDestroyed"'));
+    const shift = 3100 - (at(lines[d + 1]!) - at(lines[d]!));
+    // Everything after the MatchDestroyed (PlayerLeft, MatchCreated, ...) comes 3.1 s later.
+    const slowed = lines.map((l, i) => (i <= d ? l : JSON.stringify({ ...JSON.parse(l), receivedAt: at(l) + shift })));
+    const r = (await ingestRecording(writeRecording(slowed), config)).sessions;
+    expect(r.map((s) => s.kind)).toEqual(["replay", "replay"]);
+  });
+
   it("each LoadReplay is its own session", async () => {
     expect((await sessions("replay-load")).map((s) => s.replayId?.slice(0, 8))).toEqual([
       "C5024DCC",

@@ -43,8 +43,8 @@ const SEEK_TAKES_MS = 2_000;
 const STOP_GIVE_UP_FRAMES = 15 * REPLAY_FRAMES_PER_SECOND;
 /** Consecutive live (not replay) ticks that mean the replay was left. */
 const LIVE_TICKS_LEFT = 90;
-/** A seek recreates the match within about half a second; longer with no MatchCreated, the replay was left. */
-const REPLAY_LEFT_MS = 3_000;
+/** A seek recreates the match, usually within half a second (3.1 s seen); longer with no MatchCreated, the replay was left. */
+const REPLAY_LEFT_MS = 5_000;
 
 export type GotoResult = { ok: true; status: "seeking" | "loading" | "open" } | { ok: false; reason: string };
 

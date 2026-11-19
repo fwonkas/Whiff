@@ -25,8 +25,8 @@ import type {
 export const TOUCH_COLLAPSE_MS = 100;
 /** CrossbarHit fires every frame while the ball or puck rests on the bar. */
 export const CROSSBAR_COLLAPSE_MS = 500;
-/** A seek reloads the replay: MatchDestroyed then MatchCreated within ~0.5 s. */
-const REPLAY_RELOAD_WINDOW_MS = 2000;
+/** A seek reloads the replay: MatchDestroyed then MatchCreated, usually within 0.5 s but 3.1 s seen (2026-11-18). */
+const REPLAY_RELOAD_WINDOW_MS = 5000;
 /** Freeplay ending this close to an online match starting was freeplay while queuing. */
 const QUEUE_WARMUP_WINDOW_MS = 15_000;
 /** Freeplay rounds shorter than this give unreliable game-speed samples. */
