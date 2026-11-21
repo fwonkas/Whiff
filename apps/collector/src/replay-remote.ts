@@ -64,17 +64,17 @@ const POV_FRAME_SLACK = 30;
 const POV_FRAME_AHEAD = 150;
 const POV_AFTER_MS = 3_000;
 /**
- * Pointing the camera at my car doesn't always hold. After a seek past a
- * player leaving (2s, 2026-11-15, a teammate gone at 2:41), the camera
- * attached to my shortcut and dropped to no target a few frames later as the
- * game rebuilt the match (2026-11-16), and a shortcut from before the player
- * left points at nothing (Fly). So: aim at the shortcut ticks show now, and
- * once the game's Target has named me for POV_HOLD_MS it's done; without it
- * for POV_CHECK_MS, aim again, up to POV_TRIES times.
+ * Pointing the camera at my car doesn't always work. After a seek past a
+ * player leaving (2s, 2026-11-15, a teammate gone at 2:41), ticks say I'm
+ * shortcut 1 (I'd been 2) and Joe's own key press attaches to me as 1, yet
+ * `ChangePOV` Focus 1 leaves Target empty, five times running (2026-11-21),
+ * and Focus 2 too. So the camera works through ways of aiming (see
+ * `aimAttempts`) until the game's Target has named me for POV_HOLD_MS,
+ * giving each POV_CHECK_MS, logs which one worked or what each showed, and
+ * falls back to the director camera rather than leaving it on nothing.
  */
-const POV_CHECK_MS = 1_000;
-const POV_HOLD_MS = 1_500;
-const POV_TRIES = 5;
+const POV_CHECK_MS = 800;
+const POV_HOLD_MS = 1_000;
 
 export interface ReplayRemoteEvents {
   send: (cmd: GameCommand) => boolean;
@@ -125,7 +125,7 @@ export class ReplayRemote {
   /** A replay opened by watch(): set to normal speed once it opens ("Play all" may have left 2x). */
   private watching: string | null = null;
   /** Pointing the camera at my car until the game's Target has named me for a while. */
-  private aim: { name: string; tries: number; since: number; heldSince: number | null; seen: string[] } | null = null;
+  private aim: { name: string; attempts: AimAttempt[]; tried: number; since: number; heldSince: number | null; seen: string[] } | null = null;
   /** The last MatchDestroyed not followed by a MatchCreated: a seek in progress, or the replay was left. */
   private destroyedAt: number | null = null;
 
@@ -319,8 +319,9 @@ export class ReplayRemote {
     }
     const mine = this.mine(msg);
     if (!mine) return void this.events.log?.("replay remote: I'm not in this replay; camera left as is");
-    this.aim = { name: mine.Name, tries: 1, since: at, heldSince: null, seen: [] };
-    this.events.send(commands.pov(mine.Shortcut, "PlayerView"));
+    const attempts = aimAttempts(mine.Shortcut, mine.TeamNum);
+    this.aim = { name: mine.Name, attempts, tried: 0, since: at, heldSince: null, seen: [] };
+    for (const c of attempts[0]!.commands) this.events.send(c);
   }
 
   private mine(msg: Extract<GameMessage, { Event: "UpdateState" }>) {
@@ -328,30 +329,56 @@ export class ReplayRemote {
     return msg.Data.Players.find((p) => me.has(p.PrimaryId));
   }
 
-  /** Has the camera landed on my car, and stayed there? If not, aim again, then give up with a log line. */
+  /** Has the camera landed on my car, and stayed there? If not, aim another way; after the last, the director camera. */
   private checkAim(at: number, msg: Extract<GameMessage, { Event: "UpdateState" }>) {
     const aim = this.aim;
     if (!aim) return;
     const target = msg.Data.Game.Target?.Name || "none";
-    if (aim.seen.at(-1) !== target) aim.seen.push(target);
+    const label = aim.attempts[aim.tried]!.label;
+    const seen = `${label}: ${target}`;
+    if (aim.seen.at(-1) !== seen) aim.seen.push(seen);
     if (target === aim.name) {
       aim.heldSince ??= at;
       if (at - aim.heldSince < POV_HOLD_MS) return;
-      if (aim.tries > 1) this.events.log?.(`replay remote: the camera held on my car after ${aim.tries} tries (targets: ${aim.seen.join(" → ")})`);
+      if (aim.tried > 0) this.events.log?.(`replay remote: the camera held on my car with ${label} (${aim.seen.join(", ")})`);
       this.aim = null;
       return;
     }
     aim.heldSince = null;
     if (at - aim.since < POV_CHECK_MS) return;
-    const mine = this.mine(msg);
-    if (mine && aim.tries < POV_TRIES) {
-      aim.tries++;
+    if (++aim.tried < aim.attempts.length) {
       aim.since = at;
-      this.events.send(commands.pov(mine.Shortcut, "PlayerView"));
+      for (const c of aim.attempts[aim.tried]!.commands) this.events.send(c);
       return;
     }
     this.aim = null;
-    this.events.log?.(`replay remote: the camera didn't stay on my car after ${aim.tries} tries (targets: ${aim.seen.join(" → ")})`);
+    this.events.send({ Command: "ChangePOV", Data: { Perspective: "Camera_Director" } });
+    this.events.log?.(`replay remote: the camera didn't stay on my car; director camera instead (${aim.seen.join(", ")})`);
   }
 
+
+}
+
+interface AimAttempt {
+  label: string;
+  commands: GameCommand[];
+}
+
+/**
+ * Ways to point the camera at my car, in order: my shortcut as ticks show it
+ * (all that's needed normally), then variants of it, then every other
+ * shortcut, my team's first (the game's Target says which one is me).
+ */
+export function aimAttempts(shortcut: number, team: number): AimAttempt[] {
+  const fly: GameCommand = { Command: "ChangePOV", Data: { Perspective: "Fly" } };
+  const mine = team === 1 ? [5, 6, 7, 8] : [1, 2, 3, 4];
+  const others = team === 1 ? [1, 2, 3, 4] : [5, 6, 7, 8];
+  const rest = [...mine, ...others, 0].filter((s) => s !== shortcut);
+  return [
+    { label: `Focus ${shortcut}`, commands: [commands.pov(shortcut, "PlayerView")] },
+    { label: `Focus ${shortcut} (no perspective)`, commands: [commands.pov(shortcut)] },
+    { label: `Fly, then Focus ${shortcut}`, commands: [fly, commands.pov(shortcut, "PlayerView")] },
+    { label: `Focus ${shortcut} HardAttach`, commands: [commands.pov(shortcut, "HardAttach")] },
+    ...rest.map((s) => ({ label: `Focus ${s}`, commands: [commands.pov(s, "PlayerView")] })),
+  ];
 }

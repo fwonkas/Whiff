@@ -8,7 +8,7 @@ import { createApi } from "../src/api.ts";
 import { StatsDb } from "../src/db.ts";
 import { ingestRecording } from "../src/ingest.ts";
 import { readRecording } from "../src/recording.ts";
-import { ReplayRemote } from "../src/replay-remote.ts";
+import { aimAttempts, ReplayRemote } from "../src/replay-remote.ts";
 import { StatsService } from "../src/service.ts";
 import { fixture, ME } from "./fixtures.ts";
 import { minimalHeader } from "./replay-header-writer.ts";
@@ -94,9 +94,9 @@ describe("ReplayRemote", () => {
     expect(sent.at(-1)).toEqual({ Command: "ChangePOV", Data: { Perspective: "Camera_Director" } });
   });
 
-  it("after a player left, aims at my car again until the camera stays on it (2026-11-15/16)", () => {
+  it("after a player left, aims at my car other ways until the camera stays on it, else the director camera (2026-11-15/21)", () => {
     // 2s: my teammate (shortcut 1) left at 2:41; after a seek past that, ticks say I'm 1 (I'd been 2).
-    // Pointing at 1 attached and dropped a few frames later (2026-11-16); pointing at 2 found nothing (Fly).
+    // Focus 1 attached and dropped a few frames later (2026-11-16), or never attached (2026-11-21); Focus 2 found nothing (Fly).
     const sent: GameCommand[] = [];
     const logs: string[] = [];
     const r = new ReplayRemote({ send: (c) => (sent.push(c), true), me: () => ["Epic|me|0"], log: (l) => logs.push(l) });
@@ -120,6 +120,7 @@ describe("ReplayRemote", () => {
     const destroyed = { Event: "MatchDestroyed", Data: { MatchGuid: G } } as GameMessage;
     const pov = (s: number) => ({ Command: "ChangePOV", Data: { Focus: String(s), Perspective: "PlayerView" } });
 
+    const povs = () => sent.filter((c) => c.Command === "ChangePOV");
     r.ingest(0, created(REPLAY));
     r.ingest(100, tick(28, all, "Origami Box"));
     r.goto(REPLAY, 5148, 5, 200); // lands at 5038
@@ -128,21 +129,28 @@ describe("ReplayRemote", () => {
     expect(sent.at(-1)).toEqual(pov(1)); // the shortcut ticks show now
     r.ingest(450, tick(5047, after, "Origami Box")); // attached...
     r.ingest(500, tick(5050, after)); // ...and dropped
-    r.ingest(1400, tick(5070, after));
-    expect(sent.filter((c) => c.Command === "ChangePOV")).toHaveLength(2); // aimed again after 1 s without it
-    r.ingest(1500, tick(5072, after, "Origami Box"));
-    r.ingest(3100, tick(5110, after, "Origami Box")); // held for 1.5 s: done
+    r.ingest(1300, tick(5070, after));
+    expect(sent.at(-1)).toEqual({ Command: "ChangePOV", Data: { Focus: "1" } }); // the next way
+    r.ingest(1400, tick(5072, after, "Origami Box"));
+    r.ingest(2500, tick(5100, after, "Origami Box")); // held for 1 s: done
     r.ingest(6000, tick(5200, after));
-    expect(sent.filter((c) => c.Command === "ChangePOV")).toHaveLength(2);
-    expect(logs.at(-1)).toBe("replay remote: the camera held on my car after 2 tries (targets: none → Origami Box → none → Origami Box)");
+    expect(povs()).toHaveLength(2);
+    expect(logs.at(-1)).toBe(
+      "replay remote: the camera held on my car with Focus 1 (no perspective) (Focus 1: none, Focus 1: Origami Box, Focus 1: none, Focus 1 (no perspective): Origami Box)",
+    );
 
-    // It gives up after 5 tries with a log line.
+    // Nothing works: every way, then the director camera, with what each showed.
     sent.length = 0;
     r.goto(REPLAY, 5148, 5, 7000);
     r.ingest(7100, destroyed);
-    for (let t = 7200; t <= 13_000; t += 500) r.ingest(t, tick(5040 + (t - 7200) / 50, after));
-    expect(sent.filter((c) => c.Command === "ChangePOV")).toEqual(Array(5).fill(pov(1)));
-    expect(logs.at(-1)).toBe("replay remote: the camera didn't stay on my car after 5 tries (targets: none)");
+    for (let t = 7200; t <= 30_000; t += 400) r.ingest(t, tick(5040 + (t - 7200) / 50, after, t > 10_000 && t < 11_000 ? "Opp A" : undefined));
+    const ways = aimAttempts(1, 0);
+    expect(ways.map((w) => w.label)).toEqual([
+      "Focus 1", "Focus 1 (no perspective)", "Fly, then Focus 1", "Focus 1 HardAttach",
+      "Focus 2", "Focus 3", "Focus 4", "Focus 5", "Focus 6", "Focus 7", "Focus 8", "Focus 0",
+    ]);
+    expect(povs()).toEqual([...ways.flatMap((w) => w.commands), { Command: "ChangePOV", Data: { Perspective: "Camera_Director" } }]);
+    expect(logs.at(-1)).toMatch(/^replay remote: the camera didn't stay on my car; director camera instead \(Focus 1: none, .*: Opp A, .*Focus 0: none\)$/);
   });
 
   it("opens a replay to watch from the start at normal speed, without seeking", () => {
