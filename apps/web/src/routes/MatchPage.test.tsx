@@ -35,7 +35,7 @@ const touch = (matchTime: number, owner: "me" | "teammate" | "opponent", x: numb
 const detail: SessionDetailResponse = {
   session: {
     id: "m1", kind: "match", startedAt: Date.UTC(2026, 9, 21, 1, 19), durationSeconds: 481, playlistId: 11, playlistName: "Ranked Doubles",
-    arena: "NeoTokyo_Arcade_P", outcome: "win", goalsFor: 2, goalsAgainst: 1, overtime: true, forfeit: false, leftSettled: false, teammatesLeft: false, source: "live", partied: true,
+    arena: "NeoTokyo_Arcade_P", outcome: "win", goalsFor: 2, goalsAgainst: 1, overtime: true, forfeit: false, leftSettled: false, teammatesLeft: false, starred: false, source: "live", partied: true,
     queueWarmup: false, gameSpeed: null, gameSpeedSource: null, me: { score: 700, goals: 2, shots: 4, assists: 0, saves: 1, touches: 40, demos: 0, team: 1 },
     touchShare: 0.55, mvp: true, replay: null, teammates: ["Pat"], pack: null, playSessionId: null, note: null, endedAt: 0, pausedSeconds: 0,
   },
@@ -90,6 +90,31 @@ let liveRouter: ReturnType<typeof makeRouter>;
 /** The analysis of a real ranked 2s replay (anonymized), as the collector stores it. */
 const realAnalysis = () =>
   analyzeReplay(JSON.parse(gunzipSync(readFileSync(`${process.cwd()}/fixtures/ranked-2s-replay.subtr.json.gz`)).toString()) as SubtrExtract);
+
+describe("starring a match", () => {
+  it("has a star toggle between the title and the MVP badge", async () => {
+    renderMatch();
+    const heading = await screen.findByRole("heading", { level: 1 });
+    const star = screen.getByRole("button", { name: "Star this match" });
+    expect(star).toHaveAttribute("aria-pressed", "false");
+    // Order in the title line: heading, star, MVP.
+    expect([...heading.parentElement!.children].map((e) => e.tagName + (e.textContent ?? ""))).toEqual(["H1Win 2–1 in overtime", "BUTTON", "SPANMVP"]);
+    const patchSession = vi.fn(async () => ({ ...detail.session, starred: true }));
+    Object.assign(liveApi, { patchSession });
+    await userEvent.click(star);
+    expect(patchSession).toHaveBeenCalledWith("m1", { starred: true });
+  });
+
+  it("shows a starred match as pressed, and unstars it", async () => {
+    renderMatch(undefined, { ...detail, session: { ...detail.session, starred: true } });
+    const star = await screen.findByRole("button", { name: "Star this match" });
+    expect(star).toHaveAttribute("aria-pressed", "true");
+    const patchSession = vi.fn(async () => detail.session);
+    Object.assign(liveApi, { patchSession });
+    await userEvent.click(star);
+    expect(patchSession).toHaveBeenCalledWith("m1", { starred: false });
+  });
+});
 
 describe("a match I left early", () => {
   const left = { ...detail, session: { ...detail.session, outcome: "abandoned" as const, goalsFor: 0, goalsAgainst: 3, mvp: false } };
@@ -186,7 +211,8 @@ describe("Match screen", () => {
     const rows = within(table).getAllByRole("row");
     const names = rows.map((r) => within(r).queryAllByRole("rowheader")[0]?.textContent ?? "");
     expect(names.filter(Boolean)).toEqual([expect.stringMatching(/^Your team/), expect.stringMatching(/^Me \(you\)MVP/), "PatTeammate", expect.stringMatching(/^Opponents/), "Rival", "DropinJoined late"]);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Win 2–1 in overtimeMVP");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/^Win 2–1 in overtime$/);
+    expect(screen.getByRole("heading", { level: 1 }).parentElement).toHaveTextContent(/MVP$/);
   });
 
   it("marks no MVP in 1s, where the winner always is", async () => {

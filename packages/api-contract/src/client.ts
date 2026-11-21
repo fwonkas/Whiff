@@ -22,12 +22,13 @@ export class ApiError extends Error {
   }
 }
 
-type Params = Record<string, string | number | string[] | undefined>;
+type Params = Record<string, string | number | boolean | string[] | undefined>;
 
 const toQuery = (params: Params = {}) => {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    if (v === undefined) continue;
+    // A false flag is the same as none.
+    if (v === undefined || v === false) continue;
     q.set(k, Array.isArray(v) ? v.join(",") : String(v));
   }
   const s = q.toString();

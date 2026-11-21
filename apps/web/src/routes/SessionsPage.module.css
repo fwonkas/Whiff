@@ -240,19 +240,25 @@ a.row:hover {
 /* Each list item: the row (a link to the match) and, beside it, the replay control. */
 .item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 128px;
+  /* The star toggle, the row (a link), the replay control: buttons can't go inside the link. */
+  grid-template-columns: 52px minmax(0, 1fr) 128px;
   align-items: center;
   border-top: 1px solid var(--rule);
 }
 /* No Replay column (hidden while the game isn't running, by setting). */
 .list[data-no-replay] .item {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
 }
 .list[data-no-replay] .head {
   padding-right: 20px;
 }
 .item > .row {
   border-top: 0;
+  padding-left: 4px;
+}
+.starCell {
+  display: flex;
+  padding-left: 8px;
 }
 .replay {
   display: flex;
@@ -267,6 +273,8 @@ a.row:hover {
 .head {
   /* Sticky is positioned, so the Replay heading can sit over the last column. */
   padding-right: 148px;
+  /* Past the star column. */
+  padding-left: 56px;
 }
 .score { grid-area: score; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .line { grid-area: stats; display: flex; gap: 10px; justify-content: flex-end; white-space: nowrap; }
@@ -306,7 +314,7 @@ a.row:hover {
     width: 48px;
   }
   .item {
-    grid-template-columns: minmax(0, 1fr) 120px;
+    grid-template-columns: 52px minmax(0, 1fr) 120px;
   }
 }
 @container matches (max-width: 940px) {
@@ -335,8 +343,15 @@ a.row:hover {
   .line { justify-content: flex-start; color: var(--text-soft); }
   /* Room for the OT badge, so W/L pills line up whether or not a row has it. */
   .result { min-width: 118px; }
-  .item {
-    grid-template-columns: minmax(0, 1fr) auto;
+  .item,
+  .list[data-no-replay] .item {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .starCell {
+    padding-left: max(4px, calc(var(--gutter) - 12px));
+  }
+  .item > .row {
+    padding-left: 0;
   }
   .replay {
     padding-right: var(--gutter);

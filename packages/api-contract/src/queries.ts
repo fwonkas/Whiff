@@ -23,6 +23,8 @@ export const SessionsQuery = z.object({
   with: WithFilter.optional(),
   result: ResultFilter.optional(),
   replay: ReplayFilter.optional(),
+  /** Only matches I starred ("true"; anything else, or none, lists all). */
+  starred: z.preprocess((v) => v === true || v === "true", z.boolean()).optional(),
   /** Cursor: only sessions that started before this time (ms). */
   before: z.coerce.number().int().optional(),
   /** Date range (ms): sessions that started at or after `since` and before `until`. */
@@ -39,7 +41,7 @@ export const PlaySessionsQuery = z.object({
 });
 export type PlaySessionsQuery = z.infer<typeof PlaySessionsQuery>;
 
-export const SummaryQuery = SessionsQuery.pick({ teamSize: true, playlist: true, with: true, result: true, replay: true, since: true, until: true });
+export const SummaryQuery = SessionsQuery.pick({ teamSize: true, playlist: true, with: true, result: true, replay: true, starred: true, since: true, until: true });
 export type SummaryQuery = z.infer<typeof SummaryQuery>;
 
 export const METRIC_NAMES = [
@@ -76,6 +78,8 @@ export const PatchSessionBody = z.object({
   note: z.string().max(2000).nullable().optional(),
   /** A match I left early whose result was settled anyway: count it as its score shows (true) or as left early (false). */
   leftSettled: z.boolean().optional(),
+  /** Star or unstar a match. */
+  starred: z.boolean().optional(),
 });
 export type PatchSessionBody = z.infer<typeof PatchSessionBody>;
 

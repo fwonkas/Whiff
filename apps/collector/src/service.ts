@@ -180,6 +180,7 @@ export class StatsService {
       outcome: q.result === "win" || q.result === "loss" ? q.result : undefined,
       teamSize: q.teamSize,
       partied: q.with === undefined ? undefined : q.with === "party",
+      starred: q.starred || undefined,
       since: q.since,
       until: q.until,
       before: q.before,
@@ -235,6 +236,7 @@ export class StatsService {
       forfeit: s.forfeit,
       leftSettled: s.leftSettled ?? false,
       teammatesLeft: s.teammatesLeft ?? false,
+      starred: !!row.starred,
       source: s.source,
       partied: s.partied,
       queueWarmup: s.queueWarmup,
@@ -306,6 +308,15 @@ export class StatsService {
     return this.matchMetricsFor(q).filter((m) => q.playlist !== undefined || !isNonStandard(m.playlistId ?? null));
   }
 
+  /** The star chip: of the matches listed with every other filter, how many are starred. */
+  private starredCounts(q: SummaryQuery): { total: number; starred: number } {
+    const keep = this.postFilter(q);
+    const ids = this.db
+      .listSessionIds(this.filter({ ...q, starred: undefined, kind: "match", limit: undefined, before: undefined }))
+      .filter((r) => !keep || keep(r.id));
+    return { total: ids.length, starred: ids.filter((r) => this.db.sessionRow(r.id)?.starred).length };
+  }
+
   summary(q: SummaryQuery) {
     const all = this.matchMetricsFor(q);
     const record = (ms: MatchMetrics[]): Record3 => ({
@@ -331,7 +342,7 @@ export class StatsService {
       }))
       .filter((m) => m.matches > 0);
     const index = this.playSessionIndex();
-    const base = { kind: "match" as const, teamSize: q.teamSize, playlist: q.playlist, with: q.with, ...dates };
+    const base = { kind: "match" as const, teamSize: q.teamSize, playlist: q.playlist, with: q.with, starred: q.starred, ...dates };
     // Each filter's counts apply every other filter: results within the replay filter, and the other way round.
     const replays = this.replayStatus();
     const replayOk = (id: string) => !q.replay || (q.replay === "saved") === (replays.get(id)?.state === "saved");
@@ -371,6 +382,7 @@ export class StatsService {
       modes,
       resultCounts,
       replayCounts,
+      starredCounts: this.starredCounts(q),
     };
   }
 

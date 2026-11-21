@@ -60,6 +60,18 @@ describe("StatsDb", () => {
     db.close();
   });
 
+  it("keeps a star across re-ingest", async () => {
+    const db = new StatsDb(":memory:");
+    const { sessions } = await ingestRecording(fixture("ranked-1s-win"), config);
+    const m = sessions.find((s) => s.kind === "match")!;
+    db.saveSession(m);
+    expect(db.updateSession(m.id, { starred: true })).toBe(true);
+    db.saveSession(m);
+    expect(db.sessionRow(m.id)?.starred).toBe(1);
+    expect(db.listSessionIds({ starred: true }).map((r) => r.id)).toEqual([m.id]);
+    db.close();
+  });
+
   it("looks up the replay frame for a match moment", async () => {
     const db = new StatsDb(":memory:");
     const { sessions } = await ingestRecording(fixture("replay-ot-seeks"), config);

@@ -16,6 +16,7 @@ const summary = {
   filterCounts: Object.fromEntries(["all", "1", "2", "3"].map((k) => [k, { total: 3, solo: 3, party: 0 }])),
   resultCounts: { total: 3, win: 2, loss: 1, mvp: 0 },
   replayCounts: { total: 3, attention: 2, saved: 1 },
+  starredCounts: { total: 3, starred: 0 },
 };
 
 function renderAt(url: string) {

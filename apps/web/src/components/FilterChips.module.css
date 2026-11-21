@@ -81,3 +81,14 @@
 .menusRow :global(.chip) {
   padding-inline: 11px;
 }
+
+/* The star chip's star: filled, in the chip's color (dark on the pressed chip). */
+.starIcon {
+  fill: currentColor;
+}
+:global(.chip):not([aria-pressed="true"]) > .starIcon {
+  color: var(--star);
+}
+.count {
+  font-size: 13px;
+}

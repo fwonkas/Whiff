@@ -5,6 +5,7 @@ import type { Record3, SessionColumn, SessionListItem, SummaryResponse } from "@
 import { FilterChips } from "../components/FilterChips.tsx";
 import { useReplayControlsShown } from "../lib/replay-controls.ts";
 import { ReplayAction } from "../components/ReplayAction.tsx";
+import { StarToggle } from "../components/StarToggle.tsx";
 import { HelpTip } from "../components/HelpTip.tsx";
 import { AtRiskLine } from "../components/ReplayPanels.tsx";
 import { useConfig, useSessions, useSummary } from "../lib/api.tsx";
@@ -37,9 +38,22 @@ export function SessionsPage() {
   const pageSize = config.data?.ui.sessionsPageSize ?? cachedUi().sessionsPageSize;
   // A filter that narrows to matches (dates don't: practice in range still shows).
   const matchesOnly =
-    filters.teamSize !== undefined || filters.with !== undefined || filters.playlist !== undefined || filters.result !== undefined || filters.replay !== undefined;
+    filters.teamSize !== undefined ||
+    filters.with !== undefined ||
+    filters.playlist !== undefined ||
+    filters.result !== undefined ||
+    filters.replay !== undefined ||
+    filters.starred !== undefined;
   const filtered = matchesOnly || filters.from !== undefined || filters.to !== undefined;
-  const q = { teamSize: filters.teamSize, playlist: filters.playlist, with: filters.with, result: filters.result, replay: filters.replay, ...rangeOf(filters) };
+  const q = {
+    teamSize: filters.teamSize,
+    playlist: filters.playlist,
+    with: filters.with,
+    result: filters.result,
+    replay: filters.replay,
+    starred: filters.starred,
+    ...rangeOf(filters),
+  };
   // Without a match filter, practice comes along too, for the per-day practice minutes.
   const sessions = useSessions({ kind: matchesOnly ? "match" : "all", ...q, limit: pageSize });
   const summary = useSummary(q);
@@ -467,6 +481,9 @@ function SessionList({ items, more }: { items: SessionListItem[]; more: More }) 
             <ul className={styles.rows}>
               {day.matches.map((m) => (
                 <li key={m.id} className={styles.item}>
+                  <span className={styles.starCell}>
+                    <StarToggle sessionId={m.id} starred={m.starred} what={`the ${formatTime(m.startedAt)} match`} />
+                  </span>
                   <MatchRow m={m} cols={cols} grid={grid} />
                   {replayColumn && (
                     <span className={styles.replay}>

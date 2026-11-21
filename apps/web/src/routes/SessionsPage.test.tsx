@@ -34,6 +34,7 @@ const match = (over: Partial<SessionListItem>): SessionListItem => ({
   forfeit: false,
   leftSettled: false,
   teammatesLeft: false,
+  starred: false,
   source: "live",
   partied: true,
   queueWarmup: false,
@@ -100,6 +101,7 @@ const summary: SummaryResponse = {
   modes: [{ playlistId: 34, name: "Tournament", matches: 1 }, { playlistId: 30, name: "Ranked Snow Day", matches: 2 }],
   resultCounts: { total: 2, win: 1, loss: 1, mvp: 0 },
   replayCounts: { total: 2, attention: 1, saved: 1 },
+  starredCounts: { total: 2, starred: 1 },
 };
 
 function renderAt(url: string, ui?: Partial<UiSettings>, sum: SummaryResponse = summary) {
@@ -351,6 +353,41 @@ describe("Sessions columns", () => {
     const row = within(screen.getByRole("region", { name: "Matches" })).getAllByRole("link")[1]!;
     expect(row).toHaveTextContent("8:00 PM");
     expect(row).not.toHaveTextContent("276");
+  });
+});
+
+describe("stars", () => {
+  it("each row has a star toggle, outside the link to the match", async () => {
+    const { api } = renderAt("/sessions");
+    const stars = await screen.findAllByRole("button", { name: /^Star the .* match$/ });
+    expect(stars).toHaveLength(2);
+    expect(stars[0]).toHaveAttribute("aria-pressed", "false");
+    expect(stars[0]!.closest("a")).toBeNull();
+    const patchSession = vi.fn(async () => ({ ...items[0]!, starred: true }));
+    Object.assign(api, { patchSession });
+    await userEvent.click(stars[0]!);
+    expect(patchSession).toHaveBeenCalledWith(items[0]!.id, { starred: true });
+  });
+
+  it("the Starred chip lists starred matches only, and turns off when none are", async () => {
+    const { api, router } = renderAt("/sessions");
+    const chip = await screen.findByRole("button", { name: /^Starred/ });
+    expect(chip).toHaveAttribute("aria-pressed", "false");
+    // Just the star and the count on screen; the name says what it is.
+    expect(chip).toHaveAccessibleName("Starred (1)");
+    await userEvent.click(chip);
+    expect(router.state.location.search).toEqual({ starred: true });
+    await vi.waitFor(() => expect(api.sessions).toHaveBeenLastCalledWith(expect.objectContaining({ kind: "match", starred: true })));
+    expect(screen.getByRole("button", { name: /^Starred/ })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: /^Starred/ }));
+    expect(router.state.location.search).toEqual({});
+
+    cleanup();
+    renderAt("/sessions", undefined, { ...summary, starredCounts: { total: 2, starred: 0 } });
+    const off = (await screen.findByText("Starred")).closest(".chip")!;
+    expect(off).toHaveAttribute("aria-disabled", "true");
+    expect(off).toHaveTextContent("Starred: no starred matches here");
+    expect(screen.queryByRole("button", { name: /^Starred/ })).toBeNull();
   });
 });
 

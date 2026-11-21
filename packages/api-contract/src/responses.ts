@@ -45,6 +45,8 @@ export interface SessionListItem {
   leftSettled: boolean;
   /** I left before the end, but after all my teammates had: outcome is what the score shows. */
   teammatesLeft: boolean;
+  /** Starred in the app (a favorite). */
+  starred: boolean;
   /** "replay": rebuilt from a saved replay, not recorded live (no stat feed, about 93% of touches). */
   source: "live" | "replay";
   partied: boolean;
@@ -130,6 +132,8 @@ export interface SummaryResponse {
   resultCounts: { total: number; win: number; loss: number; mvp: number };
   /** The same, for each replay filter (every other filter applied). */
   replayCounts: { total: number; attention: number; saved: number };
+  /** Matches listed with every filter but the star, and how many of them are starred. */
+  starredCounts: { total: number; starred: number };
 }
 
 export interface DetailPlayer extends PlayerStats {

@@ -91,6 +91,25 @@ describe("GET /api/sessions", () => {
     expect(items[1]!.me).toMatchObject({ goals: 3, shots: 5 });
   });
 
+  it("stars and unstars a match, and lists starred matches only on request", async () => {
+    const all = (await api.sessions({ kind: "match", limit: 500 })).items;
+    expect(all.every((s) => !s.starred)).toBe(true);
+    const [a, b] = all;
+    expect((await api.patchSession(a!.id, { starred: true })).starred).toBe(true);
+    await api.patchSession(b!.id, { starred: true });
+    const starred = await api.sessions({ starred: true, limit: 500 });
+    expect(starred.items.map((s) => s.id)).toEqual([a!.id, b!.id]);
+    // The star chip's count: of the matches listed with every other filter.
+    expect((await api.summary({})).starredCounts).toEqual({ total: all.length, starred: 2 });
+    expect((await api.summary({ starred: true })).matches).toBe(2);
+    expect((await api.summary({ result: a!.outcome === "win" ? "loss" : "win" })).starredCounts.starred).toBe(
+      [a, b].filter((s) => s!.outcome === (a!.outcome === "win" ? "loss" : "win")).length,
+    );
+    await api.patchSession(a!.id, { starred: false });
+    await api.patchSession(b!.id, { starred: false });
+    expect((await api.sessions({ starred: true })).items).toEqual([]);
+  });
+
   it("rejects bad queries with 400", async () => {
     const res = await app.request("/api/sessions?teamSize=7");
     expect(res.status).toBe(400);

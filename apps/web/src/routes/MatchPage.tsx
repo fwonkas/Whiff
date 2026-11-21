@@ -4,6 +4,7 @@ import type { NeighborSession, SessionDetailResponse } from "@rl/api-contract";
 import { DeleteMatch } from "../components/DeleteMatch.tsx";
 import { HelpTip } from "../components/HelpTip.tsx";
 import { ReplayReview } from "../components/ReplayReview.tsx";
+import { StarToggle } from "../components/StarToggle.tsx";
 import panels from "../components/ReplayPanels.module.css";
 import { GoalTimeline } from "../components/match/GoalTimeline.tsx";
 import { ReplayAnalysis } from "../components/match/ReplayAnalysis.tsx";
@@ -58,14 +59,16 @@ export function MatchPage() {
         </span>
       </nav>
       <div>
-        <h1 className="page-title">
-          {title}
+        {/* The star sits between the title and its badges; it's a button, so it stays out of the heading. */}
+        <div className={styles.titleLine}>
+          <h1 className="page-title">{title}</h1>
+          {s.kind === "match" && <StarToggle sessionId={s.id} starred={s.starred} what="this match" size="title" />}
           {s.mvp && (
-            <span className="mvp" style={{ marginLeft: 12, verticalAlign: "middle" }} title="You were MVP">
+            <span className="mvp" title="You were MVP">
               MVP
             </span>
           )}
-        </h1>
+        </div>
         <p className="muted" style={{ margin: "8px 0 0" }}>
           {[
             playlistShort(s.playlistId, s.playlistName),

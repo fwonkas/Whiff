@@ -1,0 +1,41 @@
+/* A star: outlined and muted when off, filled gold when on (the fill, not just the color, says which). */
+.star {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.star svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.star[data-size="title"] svg {
+  width: 26px;
+  height: 26px;
+}
+.star:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+.star[aria-pressed="true"],
+.star[aria-pressed="true"]:hover {
+  color: var(--star);
+}
+.star[aria-pressed="true"] svg {
+  fill: currentColor;
+}
+.star:focus-visible {
+  outline: 2px solid var(--us);
+  outline-offset: -2px;
+}

@@ -26,6 +26,7 @@
   --warn-fg: #f2dfae;
   --mvp-bg: #3a3112;
   --mvp-fg: #f5d36b;
+  --star: #f5d36b;
   --us-hover: #b9d5ff;
   --idle: #5b6573;
   --backdrop: rgb(0 0 0 / 0.6);
@@ -68,6 +69,7 @@
     --warn-fg: #5e4700;
   --mvp-bg: #fbedbd;
   --mvp-fg: #6b4d00;
+  --star: #a87700;
     --idle: #8a94a3;
     --backdrop: rgb(18 24 32 / 0.45);
     color-scheme: light;
@@ -97,6 +99,7 @@
   --warn-fg: #5e4700;
   --mvp-bg: #fbedbd;
   --mvp-fg: #6b4d00;
+  --star: #a87700;
   --idle: #8a94a3;
   --backdrop: rgb(18 24 32 / 0.45);
   color-scheme: light;
@@ -252,7 +255,8 @@ a:hover {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.chip[aria-current="page"] {
+.chip[aria-current="page"],
+.chip[aria-pressed="true"] {
   background: var(--text);
   border-color: var(--text);
   color: var(--bg);

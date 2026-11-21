@@ -40,7 +40,9 @@ The tray icon turns gray while recording is paused and gets an orange badge when
 
 ### Sessions and matches
 
-**Sessions** lists everything you've played. The chips above it filter by mode (1s, 2s, 3s or an extra mode), teammates, result, replay status and dates; the filters are in the page address, so a bookmark keeps them. The cards beside the list describe exactly what's listed.
+**Sessions** lists everything you've played. The chips above it filter by mode (1s, 2s, 3s or an extra mode), teammates, result, replay status, dates and stars; the filters are in the page address, so a bookmark keeps them. The cards beside the list describe exactly what's listed.
+
+Star a match to keep it handy: the star at the start of its row, or beside the title on its page. The ★ chip lists only starred matches (with how many there are). Stars stay when matches are re-imported.
 
 Click a match for its page. A match you left before it ended shows as **Left early**, unless all your teammates had already left: then it counts as the loss (or win) its score shows. If the result was settled for another reason, **Count it as a loss** (or win) on its page does the same. In **Replay review**, **Watch** opens the match's replay in the game, and each goal or moment has its own Watch button that jumps there a few seconds before. While watching, `Ctrl+Alt+R` goes back to where the last jump started.
 

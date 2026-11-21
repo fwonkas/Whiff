@@ -228,6 +228,7 @@ export class StatsDb {
     add("playback", "TEXT");
     add("left_settled", "INTEGER NOT NULL DEFAULT 0");
     add("teammates_left", "INTEGER NOT NULL DEFAULT 0");
+    add("starred", "INTEGER NOT NULL DEFAULT 0");
   }
 
   close(): void {
@@ -483,8 +484,8 @@ export class StatsDb {
     db.exec("BEGIN");
     try {
       // User-entered fields survive re-ingest.
-      const kept = db.prepare("SELECT pack_code, note, left_settled FROM sessions WHERE id = ?").get(s.id) as
-        | { pack_code: string | null; note: string | null; left_settled: number }
+      const kept = db.prepare("SELECT pack_code, note, left_settled, starred FROM sessions WHERE id = ?").get(s.id) as
+        | { pack_code: string | null; note: string | null; left_settled: number; starred: number }
         | undefined;
       // "Left, but the result was settled" (setLeftSettled) holds while the recording still says I left.
       const settled = kept?.left_settled && s.outcome === "abandoned" ? settledOutcome(s.myTeam, s.scoreBlue, s.scoreOrange) : null;
@@ -492,13 +493,13 @@ export class StatsDb {
       db.prepare(
         `INSERT INTO sessions (id, kind, started_at, ended_at, playlist_id, arena, match_guid, replay_id, replay_date,
            my_team, winner_team, outcome, score_blue, score_orange, overtime, partied, queue_warmup, game_speed,
-           team_size, paused_seconds, pack_code, note, source, forfeit, playback, left_settled, teammates_left)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           team_size, paused_seconds, pack_code, note, source, forfeit, playback, left_settled, teammates_left, starred)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         s.id, s.kind, s.startedAt, s.endedAt, s.playlistId, s.arena, s.matchGuid, s.replayId, s.replayDate,
         s.myTeam, s.winnerTeam, settled ?? s.outcome, s.scoreBlue, s.scoreOrange, b(s.overtime), b(s.partied), b(s.queueWarmup),
         s.gameSpeed, s.teamSize, s.pausedSeconds, kept?.pack_code ?? null, kept?.note ?? null,
-        s.source, b(s.forfeit), s.playback ? JSON.stringify(s.playback) : null, settled ? 1 : 0, b(s.teammatesLeft ?? false),
+        s.source, b(s.forfeit), s.playback ? JSON.stringify(s.playback) : null, settled ? 1 : 0, b(s.teammatesLeft ?? false), kept?.starred ?? 0,
       );
 
       const player = db.prepare(
@@ -831,6 +832,7 @@ export class StatsDb {
       where.push("outcome = ?");
       args.push(f.outcome);
     }
+    if (f.starred) where.push("starred = 1");
     if (f.partied !== undefined) {
       where.push("partied = ?");
       args.push(f.partied ? 1 : 0);
@@ -989,9 +991,13 @@ export class StatsDb {
 
   // --- things I edit ---------------------------------------------------------
 
-  updateSession(id: string, fields: { packCode?: string | null; note?: string | null }): boolean {
+  updateSession(id: string, fields: { packCode?: string | null; note?: string | null; starred?: boolean }): boolean {
     const sets: string[] = [];
-    const args: (string | null)[] = [];
+    const args: (string | number | null)[] = [];
+    if (fields.starred !== undefined) {
+      sets.push("starred = ?");
+      args.push(fields.starred ? 1 : 0);
+    }
     if (fields.packCode !== undefined) {
       sets.push("pack_code = ?");
       args.push(fields.packCode);
@@ -1055,6 +1061,8 @@ export interface SessionFilter {
   /** Measured lobby size; rows saved before it was measured fall back to the playlist's fixed size. */
   teamSize?: number;
   partied?: boolean;
+  /** Only matches I starred. */
+  starred?: boolean;
   outcome?: "win" | "loss";
   since?: number;
   until?: number;
@@ -1087,6 +1095,8 @@ export interface SessionRow {
   forfeit: number;
   left_settled: number;
   teammates_left: number;
+  /** Set in the app; kept across re-ingest. */
+  starred: number;
   playback: string | null;
   paused_seconds: number;
   pack_code: string | null;

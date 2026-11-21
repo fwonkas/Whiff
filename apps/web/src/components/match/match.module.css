@@ -444,3 +444,14 @@ tbody[data-team="them"] .teamRow th {
 .leftEarlyError {
   color: var(--loss-fg);
 }
+
+/* The title, the star toggle, then the MVP badge. */
+.titleLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.titleLine > :global(.mvp) {
+  margin-left: 4px;
+}

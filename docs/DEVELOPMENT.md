@@ -122,6 +122,7 @@ Sessions (`apps/web/src/routes/SessionsPage.tsx`) is the worked example:
 - **Data comes from hooks** in `lib/api.tsx` (`useSessions`, `useSummary`, `useSession`, `useTrends`, `useSplits`, `usePractice`), never from `fetch` in a component. Query keys live in one place so the live feed can refresh everything when a session is saved.
 - **One markup, two layouts.** Each row is a CSS grid; under 860 px only `grid-template-areas` changes, turning the table into two-line cards.
 - **Tests** render the real router at a URL with a fake API client (`SessionsPage.test.tsx`).
+- **Stars** (`StarToggle`, `aria-pressed`) sit outside each row's link, in a column of their own, since a button can't go inside a link. `PATCH /api/sessions/:id { starred }` sets `sessions.starred`, kept across re-ingest like notes; `?starred=true` filters the list and the summary, and `starredCounts` feeds the ★ chip (a toggle, apart from the replay menu).
 
 The match page shows the goal timeline (mine above the line, theirs below, overtime shaded), the replay review, a touch map (top-down, my team attacking up; filter by whose touches, or choose a goal to see the touches in the 12 seconds before it, numbered in order) and the scoreboard (my team first, MVP and known teammates marked). Practice sessions show their numbers instead.
 

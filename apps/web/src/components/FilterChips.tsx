@@ -75,10 +75,16 @@ export function FilterChips({
   const counts = all?.filterCounts;
   // The current mode and teammates, for the result chips.
   // Results within the replay filter; replay states within the result filter (the page's own query, so cached).
-  const here = useSummary({ teamSize: current.teamSize, playlist: current.playlist, with: current.with, replay: current.replay, ...dates }).data?.resultCounts;
-  const replayHere = useSummary(
-    menus ? { teamSize: current.teamSize, playlist: current.playlist, with: current.with, result: current.result, replay: current.replay, ...dates } : {},
-  ).data?.replayCounts;
+  const here = useSummary({ teamSize: current.teamSize, playlist: current.playlist, with: current.with, replay: current.replay, starred: current.starred, ...dates }).data
+    ?.resultCounts;
+  // The page's own query (every filter), so cached: replay states within the result filter, and the star chip's count.
+  const pageSummary = useSummary(
+    menus
+      ? { teamSize: current.teamSize, playlist: current.playlist, with: current.with, result: current.result, replay: current.replay, starred: current.starred, ...dates }
+      : {},
+  ).data;
+  const replayHere = pageSummary?.replayCounts;
+  const starredHere = pageSummary?.starredCounts;
 
   const sizeProblem = (size: Size): string | null => {
     if (!counts) return null;
@@ -219,6 +225,13 @@ export function FilterChips({
       )}
       {extras && here && menus && <ResultMenu to={to} counts={here} current={current.result} />}
       {extras && menus && replayHere && <ReplayMenu counts={replayHere} current={current.replay} />}
+      {extras && menus && starredHere && (
+        <StarredChip
+          counts={starredHere}
+          on={current.starred === true}
+          toggle={() => void navigate({ to, search: (prev: MatchFilters) => ({ ...prev, starred: prev.starred ? undefined : (true as const) }) })}
+        />
+      )}
       {extras && here && !menus && (
         <ResultChips
           counts={here}
@@ -399,6 +412,42 @@ function ReplayMenu({ counts, current }: { counts: { total: number; attention: n
           })
         }
       </ChipMenu>
+    </div>
+  );
+}
+
+/**
+ * Starred matches only: a toggle, separate from the replay menu since a star
+ * says nothing about the replay (starred and needing attention go together).
+ * Just the star and its count, so the filters still fit one row at 1280 px.
+ */
+function StarredChip({ counts, on, toggle }: { counts: { total: number; starred: number }; on: boolean; toggle: () => void }) {
+  const label = (
+    <>
+      <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" className={styles.starIcon}>
+        <path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z" />
+      </svg>
+      <span className="visually-hidden">Starred</span>
+    </>
+  );
+  const problem = counts.starred === 0 ? "No starred matches here" : counts.starred === counts.total ? "Every match here is starred" : null;
+  return (
+    <div className="chips" role="group" aria-label="Starred">
+      {problem && !on ? (
+        <Off label={label} why={problem} />
+      ) : (
+        <button
+          type="button"
+          className={`chip ${styles.other}`}
+          aria-pressed={on}
+          aria-label={`Starred (${counts.starred})`}
+          title="Starred matches only"
+          onClick={toggle}
+        >
+          {label}
+          <span className={`num ${styles.count}`}>{counts.starred}</span>
+        </button>
+      )}
     </div>
   );
 }
