@@ -1,7 +1,7 @@
 {
   "name": "@rl/desktop",
   "productName": "Whiff",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "private": true,
   "type": "module",
   "description": "Whiff: records your Rocket League games from the tray",
