@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { cliConfigPath, repoConfigPath } from "../src/config.ts";
 
@@ -18,7 +18,9 @@ describe("settings for commands run from the repo", () => {
   });
 
   it("take --config first, from where the command was run", () => {
-    expect(cliConfigPath(["--config", "my.json"], { APPDATA: appData(), INIT_CWD: "/somewhere" })).toBe(join("/somewhere", "my.json"));
+    // A real absolute folder: "/somewhere" gains the drive letter on Windows (D:\\somewhere).
+    const cwd = mkdtempSync(join(tmpdir(), "cwd-"));
+    expect(cliConfigPath(["--config", "my.json"], { APPDATA: appData(), INIT_CWD: cwd })).toBe(resolve(cwd, "my.json"));
   });
 
   it("fall back to the repo's file without an installed app", () => {
