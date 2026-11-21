@@ -68,8 +68,8 @@ const POV_AFTER_MS = 3_000;
  * player leaving (2s, 2026-11-15, a teammate gone at 2:41), ticks say I'm
  * shortcut 1 (I'd been 2) and Joe's own key press attaches to me as 1, yet
  * `ChangePOV` Focus 1 leaves Target empty, five times running (2026-11-21),
- * and Focus 2 too. So the camera works through ways of aiming (see
- * `aimAttempts`) until the game's Target has named me for POV_HOLD_MS,
+ * and Focus 2 too; Focus 0 found me. So the camera works through shortcuts
+ * (see `aimAttempts`) until the game's Target has named me for POV_HOLD_MS,
  * giving each POV_CHECK_MS, logs which one worked or what each showed, and
  * falls back to the director camera rather than leaving it on nothing.
  */
@@ -366,19 +366,15 @@ interface AimAttempt {
 
 /**
  * Ways to point the camera at my car, in order: my shortcut as ticks show it
- * (all that's needed normally), then variants of it, then every other
- * shortcut, my team's first (the game's Target says which one is me).
+ * (all that's needed normally), then 0, then every other shortcut, my team's
+ * first (the game's Target says which one is me). After a seek past my
+ * teammate leaving (2s, 2026-11-21), ticks said I was 1 but Focus 1 found
+ * nothing (no perspective, Fly first and HardAttach didn't either) and Focus
+ * 0 was me; the opponents still answered to their 5 and 6.
  */
 export function aimAttempts(shortcut: number, team: number): AimAttempt[] {
-  const fly: GameCommand = { Command: "ChangePOV", Data: { Perspective: "Fly" } };
   const mine = team === 1 ? [5, 6, 7, 8] : [1, 2, 3, 4];
   const others = team === 1 ? [1, 2, 3, 4] : [5, 6, 7, 8];
-  const rest = [...mine, ...others, 0].filter((s) => s !== shortcut);
-  return [
-    { label: `Focus ${shortcut}`, commands: [commands.pov(shortcut, "PlayerView")] },
-    { label: `Focus ${shortcut} (no perspective)`, commands: [commands.pov(shortcut)] },
-    { label: `Fly, then Focus ${shortcut}`, commands: [fly, commands.pov(shortcut, "PlayerView")] },
-    { label: `Focus ${shortcut} HardAttach`, commands: [commands.pov(shortcut, "HardAttach")] },
-    ...rest.map((s) => ({ label: `Focus ${s}`, commands: [commands.pov(s, "PlayerView")] })),
-  ];
+  const order = [...new Set([shortcut, 0, ...mine, ...others])];
+  return order.map((s) => ({ label: `Focus ${s}`, commands: [commands.pov(s, "PlayerView")] }));
 }

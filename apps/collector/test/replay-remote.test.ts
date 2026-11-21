@@ -130,13 +130,13 @@ describe("ReplayRemote", () => {
     r.ingest(450, tick(5047, after, "Origami Box")); // attached...
     r.ingest(500, tick(5050, after)); // ...and dropped
     r.ingest(1300, tick(5070, after));
-    expect(sent.at(-1)).toEqual({ Command: "ChangePOV", Data: { Focus: "1" } }); // the next way
+    expect(sent.at(-1)).toEqual(pov(0)); // the next way: 0 was me on 2026-11-21
     r.ingest(1400, tick(5072, after, "Origami Box"));
     r.ingest(2500, tick(5100, after, "Origami Box")); // held for 1 s: done
     r.ingest(6000, tick(5200, after));
     expect(povs()).toHaveLength(2);
     expect(logs.at(-1)).toBe(
-      "replay remote: the camera held on my car with Focus 1 (no perspective) (Focus 1: none, Focus 1: Origami Box, Focus 1: none, Focus 1 (no perspective): Origami Box)",
+      "replay remote: the camera held on my car with Focus 0 (Focus 1: none, Focus 1: Origami Box, Focus 1: none, Focus 0: Origami Box)",
     );
 
     // Nothing works: every way, then the director camera, with what each showed.
@@ -146,11 +146,10 @@ describe("ReplayRemote", () => {
     for (let t = 7200; t <= 30_000; t += 400) r.ingest(t, tick(5040 + (t - 7200) / 50, after, t > 10_000 && t < 11_000 ? "Opp A" : undefined));
     const ways = aimAttempts(1, 0);
     expect(ways.map((w) => w.label)).toEqual([
-      "Focus 1", "Focus 1 (no perspective)", "Fly, then Focus 1", "Focus 1 HardAttach",
-      "Focus 2", "Focus 3", "Focus 4", "Focus 5", "Focus 6", "Focus 7", "Focus 8", "Focus 0",
+      "Focus 1", "Focus 0", "Focus 2", "Focus 3", "Focus 4", "Focus 5", "Focus 6", "Focus 7", "Focus 8",
     ]);
     expect(povs()).toEqual([...ways.flatMap((w) => w.commands), { Command: "ChangePOV", Data: { Perspective: "Camera_Director" } }]);
-    expect(logs.at(-1)).toMatch(/^replay remote: the camera didn't stay on my car; director camera instead \(Focus 1: none, .*: Opp A, .*Focus 0: none\)$/);
+    expect(logs.find((l) => l.includes("director camera"))).toMatch(/^replay remote: the camera didn't stay on my car; director camera instead \(Focus 1: none, .*: Opp A, .*Focus 8: none\)$/);
   });
 
   it("opens a replay to watch from the start at normal speed, without seeking", () => {
