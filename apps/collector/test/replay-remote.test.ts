@@ -94,8 +94,9 @@ describe("ReplayRemote", () => {
     expect(sent.at(-1)).toEqual({ Command: "ChangePOV", Data: { Perspective: "Camera_Director" } });
   });
 
-  it("after a player left, points the camera at my car by its shortcut from before, checking where it lands (2026-11-15)", () => {
-    // 2s: my teammate (shortcut 1) left at 2:41; ticks then said I was 1 (I'd been 2), and pointing at 1 left the camera on Fly.
+  it("after a player left, aims at my car again until the camera stays on it (2026-11-15/16)", () => {
+    // 2s: my teammate (shortcut 1) left at 2:41; after a seek past that, ticks say I'm 1 (I'd been 2).
+    // Pointing at 1 attached and dropped a few frames later (2026-11-16); pointing at 2 found nothing (Fly).
     const sent: GameCommand[] = [];
     const logs: string[] = [];
     const r = new ReplayRemote({ send: (c) => (sent.push(c), true), me: () => ["Epic|me|0"], log: (l) => logs.push(l) });
@@ -120,25 +121,28 @@ describe("ReplayRemote", () => {
     const pov = (s: number) => ({ Command: "ChangePOV", Data: { Focus: String(s), Perspective: "PlayerView" } });
 
     r.ingest(0, created(REPLAY));
-    r.ingest(100, tick(28, all, "Origami Box")); // the replay opens with everyone in it
+    r.ingest(100, tick(28, all, "Origami Box"));
     r.goto(REPLAY, 5148, 5, 200); // lands at 5038
     r.ingest(300, destroyed);
     r.ingest(400, tick(5040, after));
-    expect(sent.at(-1)).toEqual(pov(2));
-    r.ingest(900, tick(5045, after, "Origami Box")); // it landed on me: nothing more
-    r.ingest(3000, tick(5100, after, "Origami Box"));
-    expect(sent.at(-1)).toEqual(pov(2));
+    expect(sent.at(-1)).toEqual(pov(1)); // the shortcut ticks show now
+    r.ingest(450, tick(5047, after, "Origami Box")); // attached...
+    r.ingest(500, tick(5050, after)); // ...and dropped
+    r.ingest(1400, tick(5070, after));
+    expect(sent.filter((c) => c.Command === "ChangePOV")).toHaveLength(2); // aimed again after 1 s without it
+    r.ingest(1500, tick(5072, after, "Origami Box"));
+    r.ingest(3100, tick(5110, after, "Origami Box")); // held for 1.5 s: done
+    r.ingest(6000, tick(5200, after));
+    expect(sent.filter((c) => c.Command === "ChangePOV")).toHaveLength(2);
+    expect(logs.at(-1)).toBe("replay remote: the camera held on my car after 2 tries (targets: none → Origami Box → none → Origami Box)");
 
-    // If the early shortcut doesn't take, the current one is tried, then it gives up with a log line.
-    r.goto(REPLAY, 5148, 5, 4000);
-    r.ingest(4100, destroyed);
-    r.ingest(4200, tick(5040, after));
-    expect(sent.at(-1)).toEqual(pov(2));
-    r.ingest(5800, tick(5050, after));
-    expect(sent.at(-1)).toEqual(pov(1));
-    r.ingest(7400, tick(5060, after));
-    expect(sent.at(-1)).toEqual(pov(1));
-    expect(logs.at(-1)).toBe("replay remote: the camera didn't attach to my car (tried shortcuts 2, 1)");
+    // It gives up after 5 tries with a log line.
+    sent.length = 0;
+    r.goto(REPLAY, 5148, 5, 7000);
+    r.ingest(7100, destroyed);
+    for (let t = 7200; t <= 13_000; t += 500) r.ingest(t, tick(5040 + (t - 7200) / 50, after));
+    expect(sent.filter((c) => c.Command === "ChangePOV")).toEqual(Array(5).fill(pov(1)));
+    expect(logs.at(-1)).toBe("replay remote: the camera didn't stay on my car after 5 tries (targets: none)");
   });
 
   it("opens a replay to watch from the start at normal speed, without seeking", () => {

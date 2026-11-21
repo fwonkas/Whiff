@@ -64,13 +64,17 @@ const POV_FRAME_SLACK = 30;
 const POV_FRAME_AHEAD = 150;
 const POV_AFTER_MS = 3_000;
 /**
- * After pointing the camera at a shortcut, wait this long for the game's
- * Target to name my car before trying the next candidate. Once a player has
- * left, the Stats API renumbers shortcuts but the replay's camera doesn't:
- * on 2026-11-15 (2s, a teammate gone at 2:41) ticks said I was 1, the
- * camera's 1 was the departed teammate's empty slot, and the view went Fly.
+ * Pointing the camera at my car doesn't always hold. After a seek past a
+ * player leaving (2s, 2026-11-15, a teammate gone at 2:41), the camera
+ * attached to my shortcut and dropped to no target a few frames later as the
+ * game rebuilt the match (2026-11-16), and a shortcut from before the player
+ * left points at nothing (Fly). So: aim at the shortcut ticks show now, and
+ * once the game's Target has named me for POV_HOLD_MS it's done; without it
+ * for POV_CHECK_MS, aim again, up to POV_TRIES times.
  */
-const POV_CHECK_MS = 1_500;
+const POV_CHECK_MS = 1_000;
+const POV_HOLD_MS = 1_500;
+const POV_TRIES = 5;
 
 export interface ReplayRemoteEvents {
   send: (cmd: GameCommand) => boolean;
@@ -120,10 +124,8 @@ export class ReplayRemote {
   private now = 0;
   /** A replay opened by watch(): set to normal speed once it opens ("Play all" may have left 2x). */
   private watching: string | null = null;
-  /** My shortcut in the open replay when the most players were in it (before anyone left). */
-  private roster: { guid: string; players: number; shortcut: number } | null = null;
-  /** Shortcuts to try for my car until the game's Target names me. */
-  private aim: { name: string; candidates: number[]; tried: number; since: number } | null = null;
+  /** Pointing the camera at my car until the game's Target has named me for a while. */
+  private aim: { name: string; tries: number; since: number; heldSince: number | null; seen: string[] } | null = null;
   /** The last MatchDestroyed not followed by a MatchCreated: a seek in progress, or the replay was left. */
   private destroyedAt: number | null = null;
 
@@ -233,7 +235,6 @@ export class ReplayRemote {
             else if (this.reached && f >= this.stopAfter + STOP_AFTER_GOAL_FRAMES && f <= this.stopAfter + STOP_GIVE_UP_FRAMES) this.stop();
             else if (this.reached && f > this.stopAfter + STOP_GIVE_UP_FRAMES) this.stopAfter = null;
           }
-          this.noteRoster(msg);
           this.maybeSetCamera(at, msg);
           this.checkAim(at, msg);
         } else if (msg.Data.Game.Frame === undefined && ++this.liveTicks >= LIVE_TICKS_LEFT) {
@@ -318,11 +319,8 @@ export class ReplayRemote {
     }
     const mine = this.mine(msg);
     if (!mine) return void this.events.log?.("replay remote: I'm not in this replay; camera left as is");
-    // The shortcut from before anyone left first (what the camera still uses), then the one ticks show now.
-    const early = this.roster?.guid === msg.Data.MatchGuid ? this.roster.shortcut : undefined;
-    const candidates = [...new Set([early, mine.Shortcut].filter((s): s is number => s !== undefined))];
-    this.aim = { name: mine.Name, candidates, tried: 0, since: at };
-    this.events.send(commands.pov(candidates[0]!, "PlayerView"));
+    this.aim = { name: mine.Name, tries: 1, since: at, heldSince: null, seen: [] };
+    this.events.send(commands.pov(mine.Shortcut, "PlayerView"));
   }
 
   private mine(msg: Extract<GameMessage, { Event: "UpdateState" }>) {
@@ -330,26 +328,30 @@ export class ReplayRemote {
     return msg.Data.Players.find((p) => me.has(p.PrimaryId));
   }
 
-  private noteRoster(msg: Extract<GameMessage, { Event: "UpdateState" }>) {
-    const mine = this.mine(msg);
-    if (!mine) return;
-    const guid = msg.Data.MatchGuid;
-    const players = msg.Data.Players.length;
-    if (this.roster?.guid !== guid || players > this.roster.players) this.roster = { guid, players, shortcut: mine.Shortcut };
-  }
-
-  /** Did the camera land on my car? If not, try the next shortcut, then give up. */
+  /** Has the camera landed on my car, and stayed there? If not, aim again, then give up with a log line. */
   private checkAim(at: number, msg: Extract<GameMessage, { Event: "UpdateState" }>) {
     const aim = this.aim;
     if (!aim) return;
-    if (msg.Data.Game.Target?.Name === aim.name) return void (this.aim = null);
+    const target = msg.Data.Game.Target?.Name || "none";
+    if (aim.seen.at(-1) !== target) aim.seen.push(target);
+    if (target === aim.name) {
+      aim.heldSince ??= at;
+      if (at - aim.heldSince < POV_HOLD_MS) return;
+      if (aim.tries > 1) this.events.log?.(`replay remote: the camera held on my car after ${aim.tries} tries (targets: ${aim.seen.join(" → ")})`);
+      this.aim = null;
+      return;
+    }
+    aim.heldSince = null;
     if (at - aim.since < POV_CHECK_MS) return;
-    if (++aim.tried < aim.candidates.length) {
+    const mine = this.mine(msg);
+    if (mine && aim.tries < POV_TRIES) {
+      aim.tries++;
       aim.since = at;
-      this.events.send(commands.pov(aim.candidates[aim.tried]!, "PlayerView"));
+      this.events.send(commands.pov(mine.Shortcut, "PlayerView"));
       return;
     }
     this.aim = null;
-    this.events.log?.(`replay remote: the camera didn't attach to my car (tried shortcuts ${aim.candidates.join(", ")})`);
+    this.events.log?.(`replay remote: the camera didn't stay on my car after ${aim.tries} tries (targets: ${aim.seen.join(" → ")})`);
   }
+
 }
