@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Session } from "@rl/domain";
 import type { GameCommand, GameMessage } from "@rl/schema";
-import { Backfill, BACKFILL_LOAD_TIMEOUT_MS, BACKFILL_QUIT_DELAY_MS, BACKFILL_RECORDED_SPEED, BACKFILL_SPEED, BACKFILL_STALL_MS } from "../src/backfill.ts";
+import { Backfill, BACKFILL_CUT_PAUSE_MS, BACKFILL_LOAD_TIMEOUT_MS, BACKFILL_QUIT_DELAY_MS, BACKFILL_RECORDED_SPEED, BACKFILL_SPEED, BACKFILL_STALL_MS } from "../src/backfill.ts";
 import { keepGameOpen } from "../src/collector.ts";
 import { readRecording } from "../src/recording.ts";
 import { Sessionizer } from "../src/sessionizer.ts";
@@ -210,7 +210,9 @@ describe("Backfill", () => {
   });
 
   it("keeps going through a replay paused at a goal, where ticks say bReplay false but keep their Frame (2026-11-22)", async () => {
-    const b = new Backfill({ send: () => true });
+    const sent: GameCommand[] = [];
+    const logs: string[] = [];
+    const b = new Backfill({ send: (c) => (sent.push(c), true), log: (l) => logs.push(l) });
     b.start(["A", "B"], 0);
     b.ingest(1000, { Event: "ReplayCreated", Data: { MatchGuid: "", FileName: "A" } } as GameMessage);
     const tick = (frame: number | undefined, bReplay: boolean) =>
@@ -222,6 +224,11 @@ describe("Backfill", () => {
     }
     // Not stopped, and not taken for the replay's end (a pause there has bReplay true).
     expect(b.progress()).toMatchObject({ running: true, current: "A", done: 0 });
+    expect(sent.at(-1)).not.toEqual({ Command: "SetMatchPaused", Data: { bPaused: false } });
+    // Still paused there after 10 s: the run resumes it.
+    for (let t = 10_000; t <= 1900 + BACKFILL_CUT_PAUSE_MS; t += 100) b.tick(t);
+    expect(sent.at(-1)).toEqual({ Command: "SetMatchPaused", Data: { bPaused: false } });
+    expect(logs.at(-1)).toBe("backfill: A paused at frame 3959 mid-replay, resumed");
     // Live play (no Frame) still stops it.
     for (let t = 10_000; t < 14_000; t += 33) b.ingest(t, tick(undefined, false));
     expect(b.progress().running).toBe(false);

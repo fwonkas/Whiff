@@ -36,6 +36,12 @@ export const BACKFILL_END_PAUSE_MS = 3_000;
  * end to the quit, so that playback is saved and the game has settled.
  */
 export const BACKFILL_QUIT_DELAY_MS = 5_000;
+/**
+ * Paused this long at a cut mid-replay (ticks with bReplay false) during a
+ * run: resume it. Runs are mostly unattended, and on 2026-11-22 a replay
+ * paused at a goal with no one sure who paused it.
+ */
+export const BACKFILL_CUT_PAUSE_MS = 10_000;
 /** Live ticks in that wait that call the quit off: about a second of live play. */
 const LIVE_TICKS_TO_KEEP_GAME = 30;
 /** Consecutive live (not replay) ticks that mean live play started: 3 s at 30 a second. */
@@ -258,7 +264,14 @@ export class Backfill {
       if (this.queue.length === 0) this.events.onReplayDone?.(s.replayId, at);
       return this.next(at);
     }
-    // Paused by hand (not at the end) waits; frames that stop without a pause are stuck.
+    if (s.pausedAt !== null && s.atCut && at - s.pausedAt >= BACKFILL_CUT_PAUSE_MS) {
+      this.events.log?.(`backfill: ${s.replayId} paused at frame ${s.lastFrame} mid-replay, resumed`);
+      s.pausedAt = null;
+      s.lastAdvanceAt = at;
+      this.events.send(commands.pause(false));
+      return;
+    }
+    // Paused by hand elsewhere waits; frames that stop without a pause are stuck.
     if (s.pausedAt === null && at - s.lastAdvanceAt > BACKFILL_STALL_MS) {
       this.failed++;
       this.events.log?.(`backfill: ${s.replayId} stopped advancing, skipped`);
