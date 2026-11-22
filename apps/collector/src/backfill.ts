@@ -43,10 +43,20 @@ const LIVE_TICKS_TO_STOP = 90;
 /** A pause before play has properly started (around frame 160) is not the end. */
 const MIN_END_FRAME = 200;
 
+/**
+ * A tick from live play, not a replay. A replay can say bReplay false: the odd
+ * tick (two in the 2026-11-01 playback), or for as long as it's paused at the
+ * cut to a goal replay or kickoff (2026-11-22: 3 s of them stopped a run). Its
+ * ticks still carry a Frame; live play's never do.
+ */
+function isLive(g: { bReplay: boolean; Frame?: number }): boolean {
+  return !g.bReplay && g.Frame === undefined;
+}
+
 export type BackfillState =
   | { kind: "idle" }
   | { kind: "loading"; replayId: string; since: number }
-  | { kind: "playing"; replayId: string; lastFrame: number; lastAdvanceAt: number; pausedAt: number | null };
+  | { kind: "playing"; replayId: string; lastFrame: number; lastAdvanceAt: number; pausedAt: number | null; atCut: boolean };
 
 export interface BackfillProgress {
   running: boolean;
@@ -144,6 +154,8 @@ export class Backfill {
     this.done = 0;
     this.failed = 0;
     this.running = true;
+    // Left over from before (the live ticks that stopped the last run), they'd stop this one at once.
+    this.liveTicks = 0;
     this.events.log?.(`backfill: ${this.queue.length} replays`);
     this.next(at);
   }
@@ -174,7 +186,7 @@ export class Backfill {
       // Waiting to close the game: the player doing something else calls it off.
       if (msg.Event === "ReplayCreated" || msg.Event === "MatchCreated") this.quitAt = null;
       else if (msg.Event === "UpdateState") {
-        this.liveTicks = msg.Data.Game.bReplay ? 0 : this.liveTicks + 1;
+        this.liveTicks = isLive(msg.Data.Game) ? this.liveTicks + 1 : 0;
         if (this.liveTicks >= LIVE_TICKS_TO_KEEP_GAME) this.quitAt = null;
       }
     }
@@ -183,23 +195,24 @@ export class Backfill {
     switch (msg.Event) {
       case "ReplayCreated":
         if (s.kind === "loading" && msg.Data.FileName === s.replayId) {
-          this.state = { kind: "playing", replayId: s.replayId, lastFrame: -1, lastAdvanceAt: at, pausedAt: null };
+          this.state = { kind: "playing", replayId: s.replayId, lastFrame: -1, lastAdvanceAt: at, pausedAt: null, atCut: false };
           this.events.send(commands.speed(this.currentItem ? speedOf(this.currentItem) : BACKFILL_SPEED));
           this.emit();
         }
         return;
       case "UpdateState": {
         const g = msg.Data.Game;
-        // Live play means the player is back: get out of the way. A replay can
-        // send the odd tick with bReplay false (two in the 2026-11-01 playback),
-        // so it takes a few seconds of them.
-        if (!g.bReplay) {
+        // Live play means the player is back: get out of the way. It takes a
+        // few seconds of live ticks, to be sure.
+        if (isLive(g)) {
           this.liveTicks++;
           if (this.liveTicks >= LIVE_TICKS_TO_STOP) this.stop("live play started");
           return;
         }
         this.liveTicks = 0;
         if (s.kind !== "playing" || g.Frame === undefined) return;
+        // Paused at a cut (bReplay false), not at the end, where ticks say bReplay true.
+        s.atCut = !g.bReplay;
         // Seeks can move frames while paused, so only MatchUnpaused clears a pause.
         if (g.Frame > s.lastFrame) {
           s.lastFrame = g.Frame;
@@ -234,7 +247,7 @@ export class Backfill {
       return this.next(at);
     }
     if (s.kind !== "playing") return;
-    const ended = s.pausedAt !== null && s.lastFrame >= MIN_END_FRAME && at - s.pausedAt >= BACKFILL_END_PAUSE_MS;
+    const ended = s.pausedAt !== null && !s.atCut && s.lastFrame >= MIN_END_FRAME && at - s.pausedAt >= BACKFILL_END_PAUSE_MS;
     if (ended) {
       this.done++;
       if (this.currentItem) {

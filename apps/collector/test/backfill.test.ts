@@ -209,6 +209,28 @@ describe("Backfill", () => {
     expect(b.progress()).toMatchObject({ running: true, current: "NEXT", failed: 1, remaining: 0 });
   });
 
+  it("keeps going through a replay paused at a goal, where ticks say bReplay false but keep their Frame (2026-11-22)", async () => {
+    const b = new Backfill({ send: () => true });
+    b.start(["A", "B"], 0);
+    b.ingest(1000, { Event: "ReplayCreated", Data: { MatchGuid: "", FileName: "A" } } as GameMessage);
+    const tick = (frame: number | undefined, bReplay: boolean) =>
+      ({ Event: "UpdateState", Data: { MatchGuid: "G", Players: [], Game: { bReplay, ...(frame === undefined ? {} : { Frame: frame }), TimeSeconds: 156 } } }) as unknown as GameMessage;
+    b.ingest(1900, { Event: "MatchPaused", Data: { MatchGuid: "G" } } as GameMessage);
+    for (let t = 2000; t < 10_000; t += 33) {
+      b.ingest(t, tick(3959, false));
+      b.tick(t);
+    }
+    // Not stopped, and not taken for the replay's end (a pause there has bReplay true).
+    expect(b.progress()).toMatchObject({ running: true, current: "A", done: 0 });
+    // Live play (no Frame) still stops it.
+    for (let t = 10_000; t < 14_000; t += 33) b.ingest(t, tick(undefined, false));
+    expect(b.progress().running).toBe(false);
+    // Starting again isn't stopped by the live ticks that stopped the last run.
+    b.start(["A"], 15_000);
+    b.ingest(15_100, tick(undefined, false));
+    expect(b.progress()).toMatchObject({ running: true, current: "A" });
+  });
+
   it("stops when live play starts or the game isn't connected", async () => {
     const b = new Backfill({ send: () => true });
     b.start(["A", "B"], 0);
