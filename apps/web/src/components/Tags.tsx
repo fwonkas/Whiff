@@ -27,9 +27,10 @@ function merged(teammates: string[], tags: string[]) {
   return [...teammates.map((tag) => ({ tag, teammate: true })), ...tags.filter((t) => !seen.has(t.toLowerCase())).map((tag) => ({ tag, teammate: false }))];
 }
 
-/** A match's tags in the Sessions list (inside the row's link, so nothing here is interactive). */
+/** A match's tags in the Sessions list (inside the row's link, so nothing here is interactive). Nothing without any. */
 export function TagList({ tags, teammates, className = "" }: { tags: string[]; teammates: string[]; className?: string }) {
   const all = merged(teammates, tags);
+  if (all.length === 0) return null;
   return (
     <span className={`${styles.list} ${className}`}>
       {all.map((t) => (

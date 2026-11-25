@@ -301,30 +301,13 @@ a.row:hover {
   background: var(--us);
 }
 
-/* A narrower list (beside the cards): tighter columns, then no Tags. */
-.list {
-  container: matches / inline-size;
+/* A narrower list (beside the cards): tighter columns (SessionList picks them, and which columns fit). */
+.list[data-compact] .bar {
+  width: 48px;
 }
-@container matches (max-width: 1060px) {
-  .row {
-    grid-template-columns: var(--cols-compact);
-    grid-template-areas: var(--areas-compact);
-  }
-  .bar {
-    width: 48px;
-  }
-  .item {
-    grid-template-columns: 52px minmax(0, 1fr) 120px;
-  }
-}
-@container matches (max-width: 940px) {
-  .row {
-    grid-template-columns: var(--cols-tight);
-    grid-template-areas: var(--areas-tight);
-  }
-  .tags {
-    display: none;
-  }
+/* The heading keeps its padding, so its width (what SessionList measures) doesn't change with this. */
+.list[data-compact]:not([data-no-replay]) .item {
+  grid-template-columns: 52px minmax(0, 1fr) 120px;
 }
 
 @media (max-width: 860px) {
@@ -339,6 +322,13 @@ a.row:hover {
       "stats stats share .";
     row-gap: 6px;
     padding: 12px var(--gutter);
+  }
+  /* A third line for a match's tags, only when it has any. */
+  .row:has(> .tags) {
+    grid-template-areas:
+      "time playlist result score"
+      "stats stats share ."
+      "tags tags tags tags";
   }
   .line { justify-content: flex-start; color: var(--text-soft); }
   /* Room for the OT badge, so W/L pills line up whether or not a row has it. */
@@ -368,8 +358,7 @@ a.row:hover {
     display: none;
   }
   .arena,
-  .touches,
-  .tags {
+  .touches {
     display: none;
   }
   .day {

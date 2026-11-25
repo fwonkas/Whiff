@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import type { Record3, SessionColumn, SessionListItem, SummaryResponse } from "@rl/api-contract";
 import { FilterChips } from "../components/FilterChips.tsx";
@@ -437,27 +437,22 @@ interface More {
 function SessionList({ items, more }: { items: SessionListItem[]; more: More }) {
   const matches = items.filter((s) => s.kind === "match");
   const oldest = matches.at(-1);
-  const cols = useColumns("sessions");
-  // A narrower list (beside the cards) uses tighter tracks, then drops Tags; CSS picks by the list's own width.
-  const compact = gridVars(SESSION_TRACKS_COMPACT, cols) as Record<string, string>;
-  const tight = gridVars(SESSION_TRACKS_COMPACT, new Set([...cols].filter((c) => c !== "tags"))) as Record<string, string>;
-  const grid = {
-    ...gridVars(SESSION_TRACKS, cols),
-    "--cols-compact": compact["--cols"],
-    "--areas-compact": compact["--areas"],
-    "--cols-tight": tight["--cols"],
-    "--areas-tight": tight["--areas"],
-  } as CSSProperties;
+  const chosen = useColumns("sessions");
+  const head = useRef<HTMLDivElement>(null);
+  const width = useContentWidth(head);
+  const { cols, compact } = fitColumns(chosen, width);
+  const grid = gridVars(compact ? SESSION_TRACKS_COMPACT : SESSION_TRACKS, cols);
   const replayColumn = useReplayControlsShown();
   return (
     <section
       aria-label="Matches"
       className={`card ${styles.list}`}
       data-no-replay={replayColumn ? undefined : true}
+      data-compact={compact || undefined}
       data-scroll-restoration-id="sessions-list"
       tabIndex={-1}
     >
-      <div className={`${styles.row} ${styles.head}`} style={grid} aria-hidden="true">
+      <div ref={head} className={`${styles.row} ${styles.head}`} style={grid} aria-hidden="true">
         {cols.has("time") && <span className={styles.time}>Time</span>}
         {cols.has("playlist") && <span className={styles.playlist}>Playlist</span>}
         {cols.has("arena") && <span className={styles.arena}>Arena</span>}
@@ -551,6 +546,47 @@ const SESSION_TRACKS_COMPACT: Record<SessionColumn, string> = {
   touches: "56px",
   share: "112px",
 };
+
+/**
+ * Which columns fit a list this wide (the heading row's content width; 0
+ * when unknown or on a phone, whose layout is CSS's): all of them, then on
+ * tighter tracks, then without Touch share, Touches and Stats in that order,
+ * so Tags outlast them. Every other column stays.
+ */
+const DROP_ORDER: SessionColumn[] = ["share", "touches", "stats"];
+const COLUMN_GAP = 12;
+export function fitColumns(chosen: Set<SessionColumn>, width: number): { cols: Set<SessionColumn>; compact: boolean } {
+  if (width <= 0) return { cols: chosen, compact: false };
+  const need = (tracks: Record<SessionColumn, string>, cols: Set<SessionColumn>) =>
+    [...cols].reduce((sum, c) => sum + minTrack(tracks[c]), 0) + COLUMN_GAP * Math.max(0, cols.size - 1);
+  if (need(SESSION_TRACKS, chosen) <= width) return { cols: chosen, compact: false };
+  let cols = chosen;
+  for (const drop of [null, ...DROP_ORDER]) {
+    if (drop) cols = new Set([...cols].filter((c) => c !== drop));
+    if (need(SESSION_TRACKS_COMPACT, cols) <= width) break;
+  }
+  return { cols, compact: true };
+}
+/** A track's least width in px: "84px" or "minmax(140px, 1.4fr)". */
+const minTrack = (track: string) => Number(/(\d+)px/.exec(track)?.[1] ?? 0);
+
+/** An element's content width (inside its padding), kept up to date; 0 until measured or when hidden. */
+function useContentWidth(ref: RefObject<HTMLElement | null>): number {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const css = getComputedStyle(el);
+      setWidth(Math.max(0, el.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight)));
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, [ref]);
+  return width;
+}
 
 function MatchRow({ m, cols, grid }: { m: SessionListItem; cols: Set<SessionColumn>; grid: CSSProperties }) {
   const score = `${m.goalsFor ?? "?"}–${m.goalsAgainst ?? "?"}`;

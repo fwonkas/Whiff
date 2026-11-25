@@ -12,6 +12,8 @@
 span.list {
   flex-wrap: nowrap;
   overflow: hidden;
+  /* Fade out a tag cut off at the end. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
 }
 
 .tag {

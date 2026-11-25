@@ -3,10 +3,10 @@ import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_UI, type ApiClient, type SessionListItem, type SummaryResponse, type UiSettings } from "@rl/api-contract";
+import { DEFAULT_UI, type ApiClient, type SessionColumn, type SessionListItem, type SummaryResponse, type UiSettings } from "@rl/api-contract";
 import { ApiProvider } from "../lib/api.tsx";
 import { makeRouter } from "../router.tsx";
-import { groupByDay } from "./SessionsPage.tsx";
+import { fitColumns, groupByDay } from "./SessionsPage.tsx";
 
 /**
  * The pattern for screen tests: a fake API client (just the methods the
@@ -421,6 +421,24 @@ describe("tags", () => {
     renderAt("/sessions", undefined, { ...summary, tagCounts: [] });
     await screen.findByRole("button", { name: /^Starred/ });
     expect(screen.queryByRole("button", { name: /^Tag:/ })).toBeNull();
+  });
+});
+
+describe("fitColumns", () => {
+  const chosen = new Set<SessionColumn>(["playlist", "result", "score", "stats", "touches", "share", "tags"]);
+  const fit = (w: number) => {
+    const r = fitColumns(chosen, w);
+    return [[...r.cols].join(" "), r.compact];
+  };
+  it("drops Touch share, Touches and Stats before Tags as the list narrows", () => {
+    expect(fit(0)).toEqual(["playlist result score stats touches share tags", false]);
+    expect(fit(852)).toEqual(["playlist result score stats touches share tags", false]);
+    expect(fit(800)).toEqual(["playlist result score stats touches share tags", true]);
+    expect(fit(700)).toEqual(["playlist result score stats touches tags", true]);
+    expect(fit(600)).toEqual(["playlist result score stats tags", true]);
+    expect(fit(500)).toEqual(["playlist result score tags", true]);
+    // Nothing else is dropped, however narrow.
+    expect(fit(200)).toEqual(["playlist result score tags", true]);
   });
 });
 
