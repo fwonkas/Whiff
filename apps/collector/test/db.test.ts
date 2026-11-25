@@ -60,6 +60,20 @@ describe("StatsDb", () => {
     db.close();
   });
 
+  it("notices writes from another connection (npm run ingest while the app runs)", () => {
+    const path = join(mkdtempSync(join(tmpdir(), "rl-db-")), "stats.db");
+    const app = new StatsDb(path);
+    const cli = new StatsDb(path);
+    const v = app.dataVersion();
+    app.updateSession("none", { note: "x" }); // the app's own writes don't count
+    expect(app.dataVersion()).toBe(v);
+    cli.updateSession("none", { note: "x" });
+    cli.db.exec("CREATE TABLE IF NOT EXISTS probe (x)");
+    expect(app.dataVersion()).not.toBe(v);
+    app.close();
+    cli.close();
+  });
+
   it("keeps a star across re-ingest", async () => {
     const db = new StatsDb(":memory:");
     const { sessions } = await ingestRecording(fixture("ranked-1s-win"), config);

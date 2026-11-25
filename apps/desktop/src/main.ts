@@ -540,22 +540,83 @@ function showSplash(over: Electron.Rectangle | null): () => void {
   };
 }
 
-/** Open the dashboard window, optionally at a page ("/replays") or a hash ("#settings"). */
+/** Reloads tried when the page fails to load or never draws, before the window is shown anyway. */
+const DASHBOARD_RELOADS = 3;
+/** After the collector starts, the dashboard is built hidden this much later, so opening it is instant. */
+const PRELOAD_DELAY_MS = 4_000;
+
+/** Whether the dashboard's page has drawn (its header is there); until then opening it shows the splash. */
+let dashboardReady = false;
+/** Waiting for the page to draw, to show the window: set while the splash is up. */
+let onDashboardReady: (() => void) | null = null;
+
+/**
+ * Open the dashboard window, optionally at a page ("/replays") or a hash
+ * ("#settings"). The window is usually built already, hidden (see
+ * preloadDashboard), so this just shows it; while its page is still loading,
+ * the splash covers the wait.
+ */
 function openDashboard(target?: string) {
   if (!collector) return;
   const url = `http://localhost:${collector.port}`;
-  if (dashboard && !dashboard.isDestroyed()) {
-    if (target?.startsWith("#")) void dashboard.webContents.executeJavaScript(`location.hash = ${JSON.stringify(target.slice(1))}`);
-    else if (target) void dashboard.loadURL(`${url}${target}`);
-    if (dashboard.isMinimized()) dashboard.restore();
-    dashboard.show();
-    dashboard.focus();
+  const created = !dashboard || dashboard.isDestroyed();
+  if (created) createDashboard(target);
+  else if (target?.startsWith("#")) void dashboard!.webContents.executeJavaScript(`location.hash = ${JSON.stringify(target.slice(1))}`);
+  else if (target) void dashboard!.loadURL(`${url}${target}`);
+  const win = dashboard!;
+  if (dashboardReady) {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
     return;
   }
-  const bounds = savedBounds();
-  const closeSplash = showSplash(bounds);
+  if (onDashboardReady) return; // Already waiting, splash up.
+  const closeSplash = showSplash(savedBounds());
   const splashSince = Date.now();
-  dashboard = new BrowserWindow({
+  const reveal = () => {
+    if (!onDashboardReady) return;
+    onDashboardReady = null;
+    clearTimeout(deadline);
+    setTimeout(
+      () => {
+        if (!win.isDestroyed()) {
+          win.show();
+          win.focus();
+        }
+        closeSplash();
+      },
+      Math.max(0, SPLASH_MIN_MS - (Date.now() - splashSince)),
+    );
+  };
+  onDashboardReady = reveal;
+  // Shown anyway after a while, whatever the page is doing (it keeps reloading if it failed).
+  const deadline = setTimeout(reveal, SPLASH_MAX_MS);
+  win.once("closed", () => {
+    onDashboardReady = null;
+    clearTimeout(deadline);
+    closeSplash();
+  });
+}
+
+/** Build the dashboard hidden once the app has settled, so the first open doesn't wait for the page. */
+function preloadDashboard() {
+  if (!collector || (dashboard && !dashboard.isDestroyed())) return;
+  log("dashboard: loading in the background");
+  createDashboard();
+}
+
+/**
+ * The window, hidden. Its page counts as ready once it has drawn its header
+ * (not just loaded); a page that fails to load or doesn't draw in
+ * SPLASH_MAX_MS is reloaded, up to DASHBOARD_RELOADS times (on 2026-11-21 a
+ * first open stayed blank until Ctrl+R).
+ */
+function createDashboard(target?: string) {
+  if (!collector) return;
+  const url = `http://localhost:${collector.port}`;
+  const bounds = savedBounds();
+  dashboardReady = false;
+  const win = new BrowserWindow({
     width: bounds?.width ?? 1280,
     height: bounds?.height ?? 900,
     ...(bounds ? { x: bounds.x, y: bounds.y } : {}),
@@ -567,51 +628,74 @@ function openDashboard(target?: string) {
     show: false,
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
-  // Shown once the page has drawn its header (not just loaded), and the splash has had its moment.
-  const created = dashboard;
-  let revealed = false;
-  const reveal = () => {
-    if (revealed) return;
-    revealed = true;
-    setTimeout(
-      () => {
-        if (!created.isDestroyed()) created.show();
-        closeSplash();
-      },
-      Math.max(0, SPLASH_MIN_MS - (Date.now() - splashSince)),
-    );
+  dashboard = win;
+  let reloads = 0;
+  let drawTimer: ReturnType<typeof setTimeout> | undefined;
+  const retry = (why: string) => {
+    clearTimeout(drawTimer);
+    if (win.isDestroyed() || dashboardReady) return;
+    if (reloads >= DASHBOARD_RELOADS) {
+      log(`dashboard: ${why}; gave up after ${reloads} reloads`);
+      onDashboardReady?.();
+      return;
+    }
+    reloads++;
+    log(`dashboard: ${why}; reloading (${reloads} of ${DASHBOARD_RELOADS})`);
+    setTimeout(() => !win.isDestroyed() && win.webContents.reload(), 1_000);
   };
   const drawn = `new Promise((done) => {
     const check = () => (document.querySelector("#root header") ? done(true) : setTimeout(check, 50));
     check();
   })`;
-  created.webContents.once("did-finish-load", () => void created.webContents.executeJavaScript(drawn).then(reveal, reveal));
-  created.webContents.once("did-fail-load", reveal);
-  setTimeout(reveal, SPLASH_MAX_MS).unref();
-  created.once("closed", closeSplash);
+  win.webContents.on("did-finish-load", () => {
+    clearTimeout(drawTimer);
+    drawTimer = setTimeout(() => retry("the page didn't draw"), SPLASH_MAX_MS);
+    void win.webContents.executeJavaScript(drawn).then(() => {
+      clearTimeout(drawTimer);
+      if (win.isDestroyed()) return;
+      if (reloads) log("dashboard: drew after reloading");
+      dashboardReady = true;
+      onDashboardReady?.();
+    }, () => {});
+  });
+  win.webContents.on("did-fail-load", (_e, code, description, _url, isMainFrame) => {
+    if (isMainFrame) retry(`the page didn't load (${description || code})`);
+  });
+  win.webContents.on("render-process-gone", (_e, details) => {
+    log(`dashboard: the page's process ended (${details.reason})`);
+    dashboardReady = false;
+    if (!win.isDestroyed()) win.webContents.reload();
+  });
+  win.once("closed", () => {
+    clearTimeout(drawTimer);
+    if (dashboard === win) {
+      dashboard = null;
+      dashboardReady = false;
+    }
+  });
   // Links away from the dashboard open in the browser.
-  dashboard.webContents.setWindowOpenHandler(({ url: target }) => {
+  win.webContents.setWindowOpenHandler(({ url: target }) => {
     void shell.openExternal(target);
     return { action: "deny" };
   });
-  dashboard.webContents.on("will-navigate", (e, target) => {
+  win.webContents.on("will-navigate", (e, target) => {
     if (!target.startsWith(url)) {
       e.preventDefault();
       void shell.openExternal(target);
     }
   });
-  dashboard.on("close", (e) => {
-    if (dashboard && !quitting) {
+  win.on("close", (e) => {
+    if (!quitting) {
       try {
-        writeFileSync(windowStatePath, JSON.stringify(dashboard.getNormalBounds()));
+        writeFileSync(windowStatePath, JSON.stringify(win.getNormalBounds()));
       } catch {
         // Not worth failing over.
       }
       e.preventDefault();
-      dashboard.hide();
+      win.hide();
     }
   });
-  void dashboard.loadURL(target ? (target.startsWith("#") ? `${url}/${target}` : `${url}${target}`) : url);
+  void win.loadURL(target ? (target.startsWith("#") ? `${url}/${target}` : `${url}${target}`) : url).catch(() => {});
 }
 
 function openInBrowser() {
@@ -1040,6 +1124,7 @@ async function start() {
   const showDashboard = firstRun || ui?.openDashboardOnLaunch === true;
   void offerStatsApi().finally(() => {
     if (showDashboard) openDashboard();
+    else setTimeout(preloadDashboard, PRELOAD_DELAY_MS).unref();
   });
   checkMatchHistory();
 

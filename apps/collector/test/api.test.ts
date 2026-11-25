@@ -9,13 +9,15 @@ import { fixture, ME, spliceRecording, TEAMMATE } from "./fixtures.ts";
 const config = { myPrimaryIds: [ME], knownTeammates: [{ primaryId: TEAMMATE, name: "Teammate" }], recordCasual: true };
 let app: ReturnType<typeof createApi>;
 let api: ApiClient;
+let service: StatsService;
 
 beforeAll(async () => {
   const db = new StatsDb(":memory:");
   for (const name of ["ranked-3s-2s", "ranked-2s-party", "ranked-1s", "casual-3s", "snowday", "training-defense-and-shots", "freeplay", "replay-ot-seeks", "private-1v1", "ranked-1s-win"]) {
     for (const s of (await ingestRecording(fixture(name), config)).sessions) db.saveSession(s);
   }
-  app = createApi({ service: new StatsService(db), gameConnected: () => false });
+  service = new StatsService(db);
+  app = createApi({ service, gameConnected: () => false });
   // The typed client, talking to the app in-process instead of over HTTP.
   api = createApiClient("http://test", (input, init) => Promise.resolve(app.request(String(input), init)));
 });
@@ -89,6 +91,16 @@ describe("GET /api/sessions", () => {
     ]);
     expect(items[1]!.touchShare).toBeNull();
     expect(items[1]!.me).toMatchObject({ goals: 3, shots: 5 });
+  });
+
+  it("a change made through the API tells the collector, so other open dashboards fetch again", async () => {
+    const id = (await api.sessions({ kind: "match", limit: 1 })).items[0]!.id;
+    let changes = 0;
+    const off = service.onChange(() => changes++);
+    await api.patchSession(id, { note: "from my phone" });
+    expect(changes).toBeGreaterThan(0);
+    await api.patchSession(id, { note: null });
+    off();
   });
 
   it("stars and unstars a match, and lists starred matches only on request", async () => {

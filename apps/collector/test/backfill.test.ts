@@ -5,7 +5,7 @@ import { Backfill, BACKFILL_CUT_PAUSE_MS, BACKFILL_LOAD_TIMEOUT_MS, BACKFILL_QUI
 import { keepGameOpen } from "../src/collector.ts";
 import { readRecording } from "../src/recording.ts";
 import { Sessionizer } from "../src/sessionizer.ts";
-import { listSavedReplays, matchHistoryRisk, planBackfill, replayDirsIn } from "../src/replay-files.ts";
+import { listSavedReplays, matchHistoryRisk, planBackfill, replayDirsIn, replayFolderSignature } from "../src/replay-files.ts";
 import { fixture, ME } from "./fixtures.ts";
 
 const FORFEIT = "88A6539011F1D67D7C4FE98443CC66A5";
@@ -269,6 +269,13 @@ describe("choosing replays to backfill", () => {
     utimesSync(join(steam!, `${OVERTIME.toLowerCase()}.replay`), 2000, 2000);
     expect(listSavedReplays(replayDirsIn(docs)).map((r) => r.replayId)).toEqual([OVERTIME, FORFEIT]);
     expect(listSavedReplays([join(docs, "missing")])).toEqual([]);
+
+    // A replay saved or deleted changes the folders' signature (it tells open dashboards); other files don't.
+    const before = replayFolderSignature(replayDirsIn(docs));
+    writeFileSync(join(epic!, "more-notes.txt"), "");
+    expect(replayFolderSignature(replayDirsIn(docs))).toBe(before);
+    writeFileSync(join(epic!, `${"A".repeat(32)}.replay`), "");
+    expect(replayFolderSignature(replayDirsIn(docs))).not.toBe(before);
   });
 
   it("skips replays played through, and puts matches never recorded live first", () => {

@@ -32,7 +32,7 @@ It reads the game's official [Stats API](https://www.rocketleague.com/developer/
 
 1. **Turn on the Stats API.** It's off in the game by default. Whiff finds Rocket League and offers to turn it on; say yes, and allow the Windows permission prompt (the game's settings are in a protected folder). If Rocket League was running, restart it. A game update can turn it off again; Whiff notices and offers again.
 2. **Play.** Start a match or some freeplay. Whiff recognizes you from your first match and asks once, in the dashboard, to confirm it picked the right player.
-3. **Open the dashboard:** click the tray icon (it opens by itself the first time). Closing the window keeps Whiff running in the tray.
+3. **Open the dashboard:** click the tray icon (it opens by itself the first time). Closing the window keeps Whiff running in the tray. The dashboard keeps itself up to date (new matches, saved and analyzed replays, uploads), so there's no need to refresh it.
 
 The tray icon turns gray while recording is paused and gets an orange badge when an update is ready; hover over it for what Whiff is doing. Right-click it for the menu: launch Rocket League, open the dashboard, pause recording, replays, settings, updates and quit.
 

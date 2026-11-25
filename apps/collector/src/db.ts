@@ -991,6 +991,14 @@ export class StatsDb {
 
   // --- things I edit ---------------------------------------------------------
 
+  /**
+   * SQLite's data_version: changes when another connection (npm run ingest,
+   * say) has written to the database since the last look.
+   */
+  dataVersion(): number {
+    return (this.db.prepare("PRAGMA data_version").get() as { data_version: number }).data_version;
+  }
+
   updateSession(id: string, fields: { packCode?: string | null; note?: string | null; starred?: boolean }): boolean {
     const sets: string[] = [];
     const args: (string | number | null)[] = [];

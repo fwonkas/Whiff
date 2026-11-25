@@ -30,6 +30,23 @@ export interface SavedReplay {
 export const replayDirsIn = (documentsDir: string) =>
   ["DemosEpic", "Demos"].map((d) => join(documentsDir, "My Games", "Rocket League", "TAGame", d));
 
+/**
+ * What's in the replay folders, cheaply (names only, no headers read): it
+ * changes when the game saves a replay or one is deleted, so open dashboards
+ * can be told.
+ */
+export function replayFolderSignature(dirs: readonly string[]): string {
+  const names: string[] = [];
+  for (const dir of dirs) {
+    try {
+      for (const name of readdirSync(dir)) if (name.endsWith(".replay")) names.push(`${dir}|${name}`);
+    } catch {
+      names.push(`${dir}|unreadable`);
+    }
+  }
+  return names.sort().join("\n");
+}
+
 export function listSavedReplays(dirs: readonly string[]): SavedReplay[] {
   const out: SavedReplay[] = [];
   for (const dir of dirs) {

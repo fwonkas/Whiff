@@ -50,6 +50,7 @@ import { enrichFromReplay } from "./replays.ts";
  */
 export class StatsService {
   private cache = new Map<string, { session: Session; metrics: MatchMetrics | null }>();
+  private listeners = new Set<() => void>();
 
   constructor(
     readonly db: StatsDb,
@@ -70,12 +71,27 @@ export class StatsService {
     this.cache.clear();
     this.replayCache = null;
     this.myReplayCache = null;
+    this.changed();
   }
 
   /** Replay files changed (downloaded, deleted, analyzed) or ballchasing was asked. */
   invalidateReplayStatus(): void {
     this.replayCache = null;
     this.myReplayCache = null;
+    this.changed();
+  }
+
+  /**
+   * Called whenever what the API returns may have changed (every invalidate
+   * does): the collector tells open dashboards to fetch again.
+   */
+  onChange(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private changed(): void {
+    for (const l of this.listeners) l();
   }
 
   private myReplayCache: Map<string, PlayerReplayMetrics> | null = null;
@@ -126,6 +142,7 @@ export class StatsService {
   }
 
   invalidate(id: string, matchGuid?: string | null): void {
+    this.changed();
     this.cache.delete(id);
     // A new or replaced match can bring my numbers from an analysis already there.
     this.myReplayCache = null;

@@ -16,13 +16,18 @@ import { Backfill, BACKFILL_RECORDED_SPEED, BACKFILL_SPEED, type BackfillProgres
 import { BallchasingClient, BallchasingError, fetchMissingReplays, ReplayUploader, replayTitle, uploadKind, type FetchOutcome, type FetchProgress } from "./ballchasing.ts";
 import { MeDetector } from "./me-detector.ts";
 import { DEFAULT_REPLAY_LEAD_SECONDS, ReplayRemote } from "./replay-remote.ts";
-import { listSavedReplays, matchHistoryRisk, planBackfill, type BackfillPlan, type MatchHistoryRisk } from "./replay-files.ts";
+import { listSavedReplays, matchHistoryRisk, replayFolderSignature, planBackfill, type BackfillPlan, type MatchHistoryRisk } from "./replay-files.ts";
 import { Sessionizer } from "./sessionizer.ts";
 import { completeAtReplayEnd } from "./replays.ts";
 import { ReplayAnalyzer } from "./replay-analyzer.ts";
 import { SubtrWorker, type SubtrWorkerOptions } from "./subtr/pool.ts";
 import { configView, dashboardAddresses, writeSettingsPatch, type DesktopHooks } from "./settings.ts";
 import { loadConfig } from "./config.ts";
+
+/** Changes are gathered this long before open dashboards are told to fetch again. */
+const CHANGE_BROADCAST_MS = 500;
+/** How often to check whether another process wrote to the database, or a replay was saved. */
+const DATA_VERSION_POLL_MS = 3_000;
 
 /**
  * Why not to close the game at the end of a replay run, or null to close it.
@@ -502,6 +507,32 @@ export async function startCollector(opts: CollectorOptions): Promise<RunningCol
     const text = JSON.stringify(m);
     for (const c of live.clients) if (c.readyState === c.OPEN) c.send(text);
   };
+  // Tell open dashboards to fetch again when what they show may have changed:
+  // every cache invalidation, gathered for a moment (a run of uploads is one message).
+  let changeTimer: ReturnType<typeof setTimeout> | undefined;
+  service.onChange(() => {
+    if (changeTimer) return;
+    changeTimer = setTimeout(() => {
+      changeTimer = undefined;
+      broadcast({ type: "changed" });
+    }, CHANGE_BROADCAST_MS);
+  });
+  // Writes by another process (npm run ingest) don't go through the service: SQLite says when there were some.
+  let dataVersion = db.dataVersion();
+  let replayFolders = replayFolderSignature(replayDirs);
+  const dataVersionTimer = setInterval(() => {
+    const v = db.dataVersion();
+    if (v !== dataVersion) {
+      dataVersion = v;
+      service.invalidateAll();
+    }
+    // The game saving a replay (or one deleted) changes its match's replay status.
+    const folders = replayFolderSignature(replayDirs);
+    if (folders !== replayFolders) {
+      replayFolders = folders;
+      service.invalidateReplayStatus();
+    }
+  }, DATA_VERSION_POLL_MS);
 
   // --- sessions ------------------------------------------------------------
   /**
@@ -806,6 +837,8 @@ export async function startCollector(opts: CollectorOptions): Promise<RunningCol
       clearInterval(backfillTimer);
       clearInterval(uploadTimer);
       clearInterval(analyzeTimer);
+      clearInterval(dataVersionTimer);
+      clearTimeout(changeTimer);
       await subtrWorker?.close();
       backfill.stop("collector stopping");
       if (retryTimer) clearTimeout(retryTimer);

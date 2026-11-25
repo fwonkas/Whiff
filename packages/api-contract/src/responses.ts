@@ -249,6 +249,8 @@ export type LiveMessage =
   | { type: "game"; receivedAt: number; event: string; data: unknown }
   | { type: "session"; session: { id: string; kind: SessionKind; startedAt: number; outcome: Outcome | null } }
   | { type: "status"; gameConnected: boolean }
+  /** Something the dashboard shows may have changed (a replay analyzed or uploaded, a star from another device, an import): fetch again. */
+  | { type: "changed" }
   | { type: "error"; error: string };
 
 /** Settings the web app uses, from the settings file. */

@@ -246,6 +246,8 @@ export function createApi({ service, gameConnected, webRoot, replayGoto, replayW
       service.invalidate(id);
     }
     if (!service.db.updateSession(id, body.data)) return c.json({ error: "not found" }, 404);
+    // Other open dashboards (a phone) see the change.
+    service.invalidate(id);
     return c.json(service.detail(id)!.session);
   });
 
