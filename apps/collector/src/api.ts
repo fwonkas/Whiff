@@ -245,11 +245,14 @@ export function createApi({ service, gameConnected, webRoot, replayGoto, replayW
       // The outcome is in the cached session, the list and the cards.
       service.invalidate(id);
     }
-    if (!service.db.updateSession(id, body.data)) return c.json({ error: "not found" }, 404);
+    if (body.data.tags !== undefined && !service.db.setTags(id, body.data.tags)) return c.json({ error: "not found" }, 404);
+        if (!service.db.updateSession(id, body.data)) return c.json({ error: "not found" }, 404);
     // Other open dashboards (a phone) see the change.
     service.invalidate(id);
     return c.json(service.detail(id)!.session);
   });
+
+  app.get("/api/tags", (c) => c.json(service.tags()));
 
   app.get("/api/trends", (c) => {
     const q = TrendsQuery.safeParse(c.req.query());

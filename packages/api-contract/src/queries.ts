@@ -15,6 +15,9 @@ export type ResultFilter = z.infer<typeof ResultFilter>;
 export const ReplayFilter = z.enum(["attention", "saved"]);
 export type ReplayFilter = z.infer<typeof ReplayFilter>;
 
+/** The longest tag, in characters. */
+export const TAG_MAX = 40;
+
 export const SessionsQuery = z.object({
   /** "practice" = freeplay and training. Replays are never listed. */
   kind: z.enum(["all", "match", "practice"]).default("all"),
@@ -25,6 +28,8 @@ export const SessionsQuery = z.object({
   replay: ReplayFilter.optional(),
   /** Only matches I starred ("true"; anything else, or none, lists all). */
   starred: z.preprocess((v) => v === true || v === "true", z.boolean()).optional(),
+  /** Only matches with this tag: one of mine, or a known teammate's name (case doesn't matter). */
+  tag: z.string().trim().min(1).max(TAG_MAX).optional(),
   /** Cursor: only sessions that started before this time (ms). */
   before: z.coerce.number().int().optional(),
   /** Date range (ms): sessions that started at or after `since` and before `until`. */
@@ -41,7 +46,7 @@ export const PlaySessionsQuery = z.object({
 });
 export type PlaySessionsQuery = z.infer<typeof PlaySessionsQuery>;
 
-export const SummaryQuery = SessionsQuery.pick({ teamSize: true, playlist: true, with: true, result: true, replay: true, starred: true, since: true, until: true });
+export const SummaryQuery = SessionsQuery.pick({ teamSize: true, playlist: true, with: true, result: true, replay: true, starred: true, tag: true, since: true, until: true });
 export type SummaryQuery = z.infer<typeof SummaryQuery>;
 
 export const METRIC_NAMES = [
@@ -75,7 +80,10 @@ export const PackType = z.enum(["offense", "defense"]);
 
 export const PatchSessionBody = z.object({
   packCode: z.string().trim().min(1).max(40).nullable().optional(),
-  note: z.string().max(2000).nullable().optional(),
+  /** Markdown. */
+  note: z.string().max(20_000).nullable().optional(),
+  /** Replace my tags on the match (a known teammate's tag is automatic, not one of these). */
+  tags: z.array(z.string().trim().min(1).max(TAG_MAX)).max(30).optional(),
   /** A match I left early whose result was settled anyway: count it as its score shows (true) or as left early (false). */
   leftSettled: z.boolean().optional(),
   /** Star or unstar a match. */

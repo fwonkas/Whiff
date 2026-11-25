@@ -263,6 +263,7 @@ export class StatsService {
       mvp: wasMvp(s),
       replay: s.kind === "match" ? (this.replayStatus().get(s.id) ?? { state: "missing", replayId: null, played: false, history: null, notOnBallchasing: false }) : null,
       teammates: s.players.filter((p) => p.isKnownTeammate && !p.isMe && p.team === s.myTeam).map((p) => p.name),
+      tags: this.db.tagsFor(id),
       pack: this.pack(row.pack_code),
       playSessionId: index.groupOf.get(s.id)?.id ?? null,
     };
@@ -274,11 +275,17 @@ export class StatsService {
    * neither is asked for.
    */
   private postFilter(q: Partial<SessionsQuery>): ((id: string) => boolean) | null {
-    if (q.result !== "mvp" && !q.replay) return null;
+    if (q.result !== "mvp" && !q.replay && !q.tag) return null;
     const index = this.playSessionIndex();
     const replays = q.replay ? this.replayStatus() : null;
+    const tag = q.tag?.toLowerCase();
+    const tagged = tag ? this.db.allSessionTags() : null;
     return (id) => {
       if (q.result === "mvp" && !this.listItem(id, index)?.mvp) return false;
+      if (tag) {
+        const mine = tagged!.get(id)?.some((t) => t.toLowerCase() === tag) ?? false;
+        if (!mine && !this.listItem(id, index)?.teammates.some((n) => n.toLowerCase() === tag)) return false;
+      }
       if (replays) {
         const saved = replays.get(id)?.state === "saved";
         if ((q.replay === "saved") !== saved) return false;
@@ -323,6 +330,38 @@ export class StatsService {
   /** Trends and splits compare like with like: standard play only unless a mode is named. */
   private standardMetricsFor(q: Partial<SessionsQuery>): MatchMetrics[] {
     return this.matchMetricsFor(q).filter((m) => q.playlist !== undefined || !isNonStandard(m.playlistId ?? null));
+  }
+
+  /** The tag chip's menu: tags on the matches listed with every filter but the tag, known teammates' first. */
+  private tagCounts(q: SummaryQuery): { tag: string; count: number; teammate: boolean }[] {
+    const noTag = { ...q, tag: undefined };
+    const keep = this.postFilter(noTag);
+    const ids = this.db
+      .listSessionIds(this.filter({ ...noTag, kind: "match", limit: undefined, before: undefined }))
+      .filter((r) => !keep || keep(r.id));
+    const index = this.playSessionIndex();
+    const tagged = this.db.allSessionTags();
+    const counts = new Map<string, { tag: string; count: number; teammate: boolean }>();
+    const add = (tag: string, teammate: boolean) => {
+      const key = tag.toLowerCase();
+      const hit = counts.get(key);
+      if (hit) {
+        hit.count++;
+        hit.teammate ||= teammate;
+      } else counts.set(key, { tag, count: 1, teammate });
+    };
+    for (const r of ids) {
+      const teammates = this.listItem(r.id, index)?.teammates ?? [];
+      const mine = (tagged.get(r.id) ?? []).filter((t) => !teammates.some((n) => n.toLowerCase() === t.toLowerCase()));
+      for (const n of teammates) add(n, true);
+      for (const t of mine) add(t, false);
+    }
+    return [...counts.values()].sort((a, b) => Number(b.teammate) - Number(a.teammate) || b.count - a.count || a.tag.localeCompare(b.tag));
+  }
+
+  /** Every tag of mine in use (suggestions), and the known teammates' names (automatic tags). */
+  tags(): { tags: { tag: string; count: number }[]; teammates: string[] } {
+    return { tags: this.db.tagCounts(), teammates: this.db.knownTeammateNames() };
   }
 
   /** The star chip: of the matches listed with every other filter, how many are starred. */
@@ -400,6 +439,7 @@ export class StatsService {
       resultCounts,
       replayCounts,
       starredCounts: this.starredCounts(q),
+      tagCounts: this.tagCounts(q),
     };
   }
 

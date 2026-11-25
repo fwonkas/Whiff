@@ -33,6 +33,7 @@ export const keys = {
   teammateSuggestions: () => ["rl", "config", "teammates"] as const,
   meCandidates: () => ["rl", "config", "me-candidates"] as const,
   appUpdate: () => ["rl", "app-update"] as const,
+  tags: () => ["rl", "tags"] as const,
 };
 
 /** Sessions, newest first, a page at a time (cursor = the oldest start time so far). */
@@ -268,7 +269,6 @@ export function useReplayWatch() {
   return useMutation({ mutationFn: ({ replayId, launch }: { replayId: string; launch?: boolean }) => api.replayWatch(replayId, launch).catch(refusal) });
 }
 
-/** Delete a match. Everything that lists matches refreshes. */
 /** Change what I edit on a session (notes, a training pack, a left-early match counted as settled). */
 export function usePatchSession() {
   const api = useApi();
@@ -278,6 +278,13 @@ export function usePatchSession() {
     // The outcome feeds the list, the cards and the neighbors' labels, not just this page.
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: keys.all, predicate: (q) => q.queryKey[1] !== "config" }),
   });
+}
+
+/** Delete a match. Everything that lists matches refreshes. */
+/** Tags in use (for suggestions) and the known teammates' automatic ones. */
+export function useTags(enabled = true) {
+  const api = useApi();
+  return useQuery({ queryKey: keys.tags(), queryFn: () => api.tags(), enabled, staleTime: 30_000 });
 }
 
 export function useDeleteSession() {

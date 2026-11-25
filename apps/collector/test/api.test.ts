@@ -122,6 +122,28 @@ describe("GET /api/sessions", () => {
     expect((await api.sessions({ starred: true })).items).toEqual([]);
   });
 
+  it("tags a match, filters by my tags and known teammates' names, and counts both", async () => {
+    const party = (await api.sessions({ with: "party", limit: 500 })).items;
+    const solo = (await api.sessions({ with: "solo", limit: 500 })).items;
+    const [a] = solo;
+    expect((await api.patchSession(a!.id, { tags: ["Kickoffs", "kickoffs", "Tilted"] })).tags).toEqual(["Kickoffs", "Tilted"]);
+    expect((await api.sessions({ tag: "KICKOFFS" })).items.map((s) => s.id)).toEqual([a!.id]);
+    // A known teammate's name is a tag on every match with them, without saving it.
+    expect((await api.sessions({ tag: "teammate", limit: 500 })).items.map((s) => s.id)).toEqual(party.map((s) => s.id));
+    expect((await api.summary({ tag: "Tilted" })).matches).toBe(1);
+    const counts = (await api.summary({})).tagCounts;
+    expect(counts[0]).toEqual({ tag: "Teammate", count: party.length, teammate: true });
+    expect(counts.slice(1)).toEqual([
+      { tag: "Kickoffs", count: 1, teammate: false },
+      { tag: "Tilted", count: 1, teammate: false },
+    ]);
+    // Within the other filters (not the tag's own).
+    expect((await api.summary({ with: "party", tag: "Tilted" })).tagCounts.map((t) => t.tag)).toEqual(["Teammate"]);
+    expect(await api.tags()).toEqual({ tags: [{ tag: "Kickoffs", count: 1 }, { tag: "Tilted", count: 1 }], teammates: ["Teammate"] });
+    await api.patchSession(a!.id, { tags: [] });
+    expect((await api.sessions({ tag: "Tilted" })).items).toEqual([]);
+  });
+
   it("rejects bad queries with 400", async () => {
     const res = await app.request("/api/sessions?teamSize=7");
     expect(res.status).toBe(400);

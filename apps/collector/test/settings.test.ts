@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createApiClient, type ConfigResponse } from "@rl/api-contract";
+import { createApiClient, UiSettings, type ConfigResponse } from "@rl/api-contract";
 import { startCollector, type RunningCollector } from "../src/collector.ts";
 import { ingestRecording } from "../src/ingest.ts";
 import { StatsDb } from "../src/db.ts";
@@ -165,5 +165,12 @@ describe("dashboard addresses", () => {
       network: ["http://rocketleague.local:49200", "http://192.168.1.20:49200", "http://203.0.113.5:49200"],
     });
     expect(dashboardAddresses(49200, false, net, "RocketLeague")).toEqual({ thisPc: "http://localhost:49200", network: [] });
+  });
+});
+
+describe("the Sessions columns setting", () => {
+  it("reads the old Notes column as Tags", () => {
+    expect(UiSettings.parse({ sessionsColumns: ["result", "notes", "tags"] }).sessionsColumns).toEqual(["result", "tags"]);
+    expect(UiSettings.parse({}).sessionsColumns).toBeNull();
   });
 });

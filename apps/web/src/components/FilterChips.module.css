@@ -92,3 +92,13 @@
 .count {
   font-size: 13px;
 }
+
+.tagIcon {
+  flex: none;
+}
+.tagName {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

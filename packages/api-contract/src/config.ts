@@ -17,9 +17,9 @@ export const Theme = z.enum(["auto", "light", "dark"]);
 export type Theme = z.infer<typeof Theme>;
 
 /** Columns of the Sessions list, in display order; the replay control always shows. */
-export const SESSION_COLUMNS = ["time", "playlist", "arena", "result", "score", "stats", "touches", "share", "notes"] as const;
+export const SESSION_COLUMNS = ["time", "playlist", "arena", "result", "score", "stats", "touches", "share", "tags"] as const;
 export type SessionColumn = (typeof SESSION_COLUMNS)[number];
-export const DEFAULT_SESSION_COLUMNS: SessionColumn[] = ["playlist", "result", "score", "stats", "touches", "share", "notes"];
+export const DEFAULT_SESSION_COLUMNS: SessionColumn[] = ["playlist", "result", "score", "stats", "touches", "share", "tags"];
 /** Columns of the Replays list; the actions always show. */
 export const REPLAY_COLUMNS = ["when", "playlist", "arena", "result", "status"] as const;
 export type ReplayColumn = (typeof REPLAY_COLUMNS)[number];
@@ -83,7 +83,10 @@ export const UiSettings = z.object({
   /** Sessions loaded at a time on the Sessions screen (scrolling near the end of the list loads the next batch). */
   sessionsPageSize: z.union([z.literal(25), z.literal(50), z.literal(100), z.literal(200)]).default(100),
   /** Which list columns show (any order; shown in the list's own order). Null: the defaults. Not in the settings screen yet. */
-  sessionsColumns: z.array(z.enum(SESSION_COLUMNS)).nullable().default(null),
+  sessionsColumns: z
+    // The Notes column became Tags.
+    .preprocess((v) => (Array.isArray(v) ? [...new Set(v.map((c) => (c === "notes" ? "tags" : c)))] : v), z.array(z.enum(SESSION_COLUMNS)).nullable())
+    .default(null),
   replaysColumns: z.array(z.enum(REPLAY_COLUMNS)).nullable().default(null),
   /**
    * What Watch buttons do while Rocket League isn't running: stay disabled,

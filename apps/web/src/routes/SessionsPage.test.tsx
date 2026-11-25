@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_UI, type ApiClient, type SessionListItem, type SummaryResponse, type UiSettings } from "@rl/api-contract";
 import { ApiProvider } from "../lib/api.tsx";
 import { makeRouter } from "../router.tsx";
@@ -28,6 +28,7 @@ const match = (over: Partial<SessionListItem>): SessionListItem => ({
   playlistName: "Ranked Doubles",
   arena: "NeoTokyo_Arcade_P",
   outcome: "loss",
+  tags: [],
   goalsFor: 3,
   goalsAgainst: 4,
   overtime: true,
@@ -62,7 +63,7 @@ const items: SessionListItem[] = [
     // Not recorded live, and its replay played through only at 2x.
     replay: { state: "saved", replayId: "B".repeat(32), played: true, playedFast: true, history: null, notOnBallchasing: false },
   }),
-  match({ id: "m1" }),
+  match({ id: "m1", tags: ["Tilted"] }),
   match({ id: "p1", kind: "freeplay", startedAt: day - 900_000, durationSeconds: 840, playlistId: 9, outcome: null, me: null, touchShare: null, teammates: [] }),
 ];
 
@@ -102,6 +103,7 @@ const summary: SummaryResponse = {
   resultCounts: { total: 2, win: 1, loss: 1, mvp: 0 },
   replayCounts: { total: 2, attention: 1, saved: 1 },
   starredCounts: { total: 2, starred: 1 },
+  tagCounts: [{ tag: "Pat", count: 1, teammate: true }, { tag: "Tilted", count: 1, teammate: false }],
 };
 
 function renderAt(url: string, ui?: Partial<UiSettings>, sum: SummaryResponse = summary) {
@@ -388,6 +390,37 @@ describe("stars", () => {
     expect(off).toHaveAttribute("aria-disabled", "true");
     expect(off).toHaveTextContent("Starred: no starred matches here");
     expect(screen.queryByRole("button", { name: /^Starred/ })).toBeNull();
+  });
+});
+
+describe("tags", () => {
+  // An earlier test's settings file chose other columns, and the choice is cached.
+  beforeEach(() => localStorage.clear());
+
+  it("the Tags column shows a known teammate's tag apart from mine", async () => {
+    renderAt("/sessions");
+    const rows = within(await screen.findByRole("region", { name: "Matches" })).getAllByRole("link");
+    expect(rows[0]).toHaveTextContent(/With Pat$/);
+    expect(rows[1]).toHaveTextContent(/Tilted$/);
+    expect(within(rows[0]!).getByText("Pat").closest("[data-teammate]")).not.toBeNull();
+    expect(within(rows[1]!).getByText("Tilted").closest("[data-teammate]")).toBeNull();
+  });
+
+  it("the tag chip filters by a tag, with counts", async () => {
+    const { api, router } = renderAt("/sessions");
+    const chip = await screen.findByRole("button", { name: /^Tag:\s*Any tag$/ });
+    await userEvent.click(chip);
+    const option = screen.getByRole("link", { name: /^With\s*Pat\s*1$/, hidden: true });
+    await userEvent.click(option);
+    expect(router.state.location.search).toEqual({ tag: "Pat" });
+    await vi.waitFor(() => expect(api.sessions).toHaveBeenLastCalledWith(expect.objectContaining({ kind: "match", tag: "Pat" })));
+    expect(screen.getByRole("button", { name: /^Tag:\s*Pat$/ })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("leaves the tag chip out while nothing is tagged", async () => {
+    renderAt("/sessions", undefined, { ...summary, tagCounts: [] });
+    await screen.findByRole("button", { name: /^Starred/ });
+    expect(screen.queryByRole("button", { name: /^Tag:/ })).toBeNull();
   });
 });
 

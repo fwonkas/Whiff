@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
@@ -37,7 +37,7 @@ const detail: SessionDetailResponse = {
     id: "m1", kind: "match", startedAt: Date.UTC(2026, 9, 21, 1, 19), durationSeconds: 481, playlistId: 11, playlistName: "Ranked Doubles",
     arena: "NeoTokyo_Arcade_P", outcome: "win", goalsFor: 2, goalsAgainst: 1, overtime: true, forfeit: false, leftSettled: false, teammatesLeft: false, starred: false, source: "live", partied: true,
     queueWarmup: false, gameSpeed: null, gameSpeedSource: null, me: { score: 700, goals: 2, shots: 4, assists: 0, saves: 1, touches: 40, demos: 0, team: 1 },
-    touchShare: 0.55, mvp: true, replay: null, teammates: ["Pat"], pack: null, playSessionId: null, note: null, endedAt: 0, pausedSeconds: 0,
+    touchShare: 0.55, mvp: true, replay: null, teammates: ["Pat"], tags: [], pack: null, playSessionId: null, note: null, endedAt: 0, pausedSeconds: 0,
   },
   players: [
     player({ key: "me", name: "Me", team: 1, isMe: true, score: 700, goals: 2 }),
@@ -70,6 +70,7 @@ function renderMatch(analysis: ReplayAnalysisResponse = { state: "no-replay" }, 
     analysis: vi.fn(async () => analysis),
     replayGoto: vi.fn(async () => ({ ok: true, status: "seeking" })),
     settings: vi.fn(async () => ({ replayLeadSeconds: 10, canLaunchGame: false, replayAgainShortcut: null, ballchasing: false })),
+    tags: vi.fn(async () => ({ tags: [{ tag: "Kickoffs", count: 3 }, { tag: "Pat", count: 9 }, { tag: "Tilted", count: 1 }], teammates: ["Pat"] })),
   } as unknown as ApiClient;
   liveApi = api;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -113,6 +114,74 @@ describe("starring a match", () => {
     Object.assign(liveApi, { patchSession });
     await userEvent.click(star);
     expect(patchSession).toHaveBeenCalledWith("m1", { starred: false });
+  });
+});
+
+describe("tags", () => {
+  it("shows a known teammate's tag as automatic and adds my own", async () => {
+    renderMatch(undefined, { ...detail, session: { ...detail.session, tags: ["Tilted"] } });
+    const list = await screen.findByRole("list", { name: "Tags" });
+    const [pat, tilted] = within(list).getAllByRole("listitem");
+    // The teammate's tag links to the filtered list and can't be removed.
+    expect(within(pat!).getByRole("link")).toHaveTextContent("With Pat");
+    expect(within(pat!).getByRole("link")).toHaveAttribute("href", "/sessions?tag=Pat");
+    expect(within(pat!).queryByRole("button")).toBeNull();
+    expect(within(tilted!).getByRole("button", { name: "Remove tag Tilted" })).toBeInTheDocument();
+    // Suggestions: tags in use, without this match's or a teammate's.
+    await waitFor(() => expect([...document.querySelectorAll("datalist option")].map((o) => o.getAttribute("value"))).toEqual(["Kickoffs"]));
+    const patchSession = vi.fn(async () => detail.session);
+    Object.assign(liveApi, { patchSession });
+    await userEvent.type(screen.getByRole("combobox", { name: "Add a tag" }), "  Bad   rotations {Enter}");
+    expect(patchSession).toHaveBeenCalledWith("m1", { tags: ["Tilted", "Bad rotations"] });
+  });
+
+  it("removes a tag and ignores one it already has", async () => {
+    renderMatch(undefined, { ...detail, session: { ...detail.session, tags: ["Tilted", "Kickoffs"] } });
+    const patchSession = vi.fn(async () => detail.session);
+    Object.assign(liveApi, { patchSession });
+    await userEvent.type(await screen.findByRole("combobox", { name: "Add a tag" }), "tilted{Enter}pat{Enter}");
+    expect(patchSession).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Remove tag Tilted" }));
+    expect(patchSession).toHaveBeenCalledWith("m1", { tags: ["Kickoffs"] });
+  });
+});
+
+describe("notes", () => {
+  it("renders Markdown without raw HTML, and edits it", async () => {
+    const note = "Work on **kickoffs**.\n\n- [guide](https://example.com)\n- <img src=x onerror=alert(1)>";
+    renderMatch(undefined, { ...detail, session: { ...detail.session, note } });
+    const notes = await screen.findByRole("region", { name: "Notes" });
+    expect(within(notes).getByText("kickoffs").tagName).toBe("STRONG");
+    expect(within(notes).getByRole("link", { name: "guide" })).toHaveAttribute("target", "_blank");
+    expect(notes.querySelector("img")).toBeNull();
+    await userEvent.click(within(notes).getByRole("button", { name: "Edit notes" }));
+    const box = within(notes).getByRole("textbox", { name: "Notes" });
+    expect(box).toHaveValue(note);
+    const patchSession = vi.fn(async () => detail.session);
+    Object.assign(liveApi, { patchSession });
+    await userEvent.clear(box);
+    await userEvent.type(box, "Better{Control>}{Enter}{/Control}");
+    expect(patchSession).toHaveBeenCalledWith("m1", { note: "Better" });
+  });
+
+  it("adds notes to a match without any, and cancels with Escape", async () => {
+    renderMatch();
+    await userEvent.click(await screen.findByRole("button", { name: "Add notes" }));
+    const box = screen.getByRole("textbox", { name: "Notes" });
+    expect(box).toHaveFocus();
+    await userEvent.type(box, "draft{Escape}");
+    expect(screen.queryByRole("textbox", { name: "Notes" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Add notes" })).toBeInTheDocument();
+  });
+
+  it("clears a note saved empty", async () => {
+    renderMatch(undefined, { ...detail, session: { ...detail.session, note: "old" } });
+    await userEvent.click(await screen.findByRole("button", { name: "Edit notes" }));
+    const patchSession = vi.fn(async () => detail.session);
+    Object.assign(liveApi, { patchSession });
+    await userEvent.clear(screen.getByRole("textbox", { name: "Notes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(patchSession).toHaveBeenCalledWith("m1", { note: null });
   });
 });
 

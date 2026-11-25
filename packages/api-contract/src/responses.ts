@@ -62,8 +62,10 @@ export interface SessionListItem {
   mvp: boolean | null;
   /** Where the match's replay stands. Null outside matches. */
   replay: SessionReplay | null;
-  /** Names of known teammates on my team. */
+  /** Names of known teammates on my team: each is also the match's automatic tag. */
   teammates: string[];
+  /** My tags on the match (not the teammates' automatic ones). */
+  tags: string[];
   pack: Pack | null;
   /** The sitting this session belongs to (see PlaySessionItem). */
   playSessionId: string | null;
@@ -134,6 +136,11 @@ export interface SummaryResponse {
   replayCounts: { total: number; attention: number; saved: number };
   /** Matches listed with every filter but the star, and how many of them are starred. */
   starredCounts: { total: number; starred: number };
+  /**
+   * The tag chip's menu: tags on the matches listed with every filter but the
+   * tag, with how many have each. Known teammates' tags first (teammate: true).
+   */
+  tagCounts: { tag: string; count: number; teammate: boolean }[];
 }
 
 export interface DetailPlayer extends PlayerStats {
@@ -361,3 +368,10 @@ export type ReplayAnalysisResponse =
   | { state: "failed"; replayId: string; error: string }
   /** No saved replay to analyze. */
   | { state: "no-replay" };
+
+/** Every tag of mine in use, most used first: suggestions while tagging a match. */
+export interface TagsResponse {
+  tags: { tag: string; count: number }[];
+  /** Known teammates' names: automatic tags, so not suggested for typing. */
+  teammates: string[];
+}

@@ -41,6 +41,8 @@ export const MatchFilters = z.object({
   replay: z.enum(["attention", "saved"]).optional().catch(undefined),
   /** Sessions: starred matches only. Absent (not false) when off, so the URL stays clean. */
   starred: z.literal(true).optional().catch(undefined),
+  /** Sessions: matches with this tag (mine, or a known teammate's name). */
+  tag: z.string().trim().min(1).max(40).optional().catch(undefined),
   /** Date range, local days (YYYY-MM-DD), either end open. */
   from: DateParam,
   to: DateParam,

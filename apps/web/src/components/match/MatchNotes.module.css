@@ -1,0 +1,112 @@
+.empty {
+  margin-top: 12px;
+}
+.notes {
+  margin-top: 16px;
+  padding: 16px 20px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.title {
+  margin: 0;
+  font-size: 16px;
+}
+.text {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 8lh;
+  max-height: 60vh;
+  field-sizing: content;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunk);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.text:focus-visible {
+  outline: 2px solid var(--us);
+  outline-offset: 1px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+.error {
+  margin: 8px 0 0;
+  color: var(--loss-fg);
+  font-size: 13px;
+}
+
+/* The rendered note: readable line length, tight spacing. */
+.body {
+  max-width: 75ch;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.body > :first-child {
+  margin-top: 8px;
+}
+.body > :last-child {
+  margin-bottom: 0;
+}
+.body :is(p, ul, ol, blockquote, pre, table) {
+  margin: 0.6em 0;
+}
+.body :is(ul, ol) {
+  padding-left: 1.4em;
+}
+.body :is(h1, h2, h3, h4) {
+  margin: 1em 0 0.4em;
+  color: var(--text);
+  font-size: 15px;
+}
+.body a {
+  color: var(--us);
+}
+.body code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--surface-raised);
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+.body pre {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunk);
+  overflow-x: auto;
+}
+.body pre code {
+  padding: 0;
+  background: none;
+}
+.body blockquote {
+  padding-left: 12px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-muted);
+}
+.body table {
+  display: block;
+  max-width: 100%;
+  border-collapse: collapse;
+  overflow-x: auto;
+}
+.body :is(th, td) {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+}

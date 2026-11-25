@@ -86,6 +86,24 @@ describe("StatsDb", () => {
     db.close();
   });
 
+  it("keeps tags across re-ingest, tidied and once each, and drops them with the match", async () => {
+    const db = new StatsDb(":memory:");
+    const { sessions } = await ingestRecording(fixture("ranked-1s-win"), config);
+    const m = sessions.find((s) => s.kind === "match")!;
+    db.saveSession(m);
+    expect(db.setTags(m.id, ["  Bad   kickoffs ", "tilted", "Tilted"])).toBe(true);
+    expect(db.setTags("none", ["x"])).toBe(false);
+    db.saveSession(m);
+    expect(db.tagsFor(m.id)).toEqual(["Bad kickoffs", "tilted"]);
+    expect(db.tagCounts()).toEqual([
+      { tag: "Bad kickoffs", count: 1 },
+      { tag: "tilted", count: 1 },
+    ]);
+    db.deleteMatch(m.id);
+    expect(db.tagsFor(m.id)).toEqual([]);
+    db.close();
+  });
+
   it("looks up the replay frame for a match moment", async () => {
     const db = new StatsDb(":memory:");
     const { sessions } = await ingestRecording(fixture("replay-ot-seeks"), config);

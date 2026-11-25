@@ -203,7 +203,7 @@
   display: grid;
   /* The visible columns set these (lib/columns.ts); the fallback is everything. */
   grid-template-columns: var(--cols, 84px 96px minmax(140px, 1.4fr) 170px 64px 150px 64px 150px minmax(90px, 1fr));
-  grid-template-areas: var(--areas, "time playlist arena result score stats touches share notes");
+  grid-template-areas: var(--areas, "time playlist arena result score stats touches share tags");
   align-items: center;
   column-gap: 12px;
   padding: 12px 20px;
@@ -286,7 +286,7 @@ a.row:hover {
 }
 .touches { grid-area: touches; text-align: right; }
 .share { grid-area: share; display: flex; align-items: center; gap: 10px; }
-.notes { grid-area: notes; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tags { grid-area: tags; min-width: 0; }
 
 .bar {
   width: 72px;
@@ -301,7 +301,7 @@ a.row:hover {
   background: var(--us);
 }
 
-/* A narrower list (beside the cards): tighter columns, then no Notes. */
+/* A narrower list (beside the cards): tighter columns, then no Tags. */
 .list {
   container: matches / inline-size;
 }
@@ -322,7 +322,7 @@ a.row:hover {
     grid-template-columns: var(--cols-tight);
     grid-template-areas: var(--areas-tight);
   }
-  .notes {
+  .tags {
     display: none;
   }
 }
@@ -369,7 +369,7 @@ a.row:hover {
   }
   .arena,
   .touches,
-  .notes {
+  .tags {
     display: none;
   }
   .day {

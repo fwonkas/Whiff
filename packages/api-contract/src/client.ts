@@ -10,6 +10,7 @@ import type {
   SessionsResponse,
   SplitsResponse,
   SummaryResponse,
+  TagsResponse,
   TrendsResponse,
 } from "./responses.ts";
 
@@ -66,6 +67,8 @@ export function createApiClient(baseUrl = "", fetchImpl: typeof fetch = (...a) =
     playSessions: (q: Partial<PlaySessionsQuery> = {}) => get<PlaySessionsResponse>("/api/play-sessions", q),
     practice: () => get<PracticeResponse>("/api/practice"),
     packs: () => get<Pack[]>("/api/packs"),
+    /** Tags in use, for suggestions. */
+    tags: () => get<TagsResponse>("/api/tags"),
     patchSession: (id: string, body: PatchSessionBody) =>
       request<SessionDetailResponse["session"]>("PATCH", `/api/sessions/${encodeURIComponent(id)}`, body),
     putPack: (code: string, body: PutPackBody) => request<Pack>("PUT", `/api/packs/${encodeURIComponent(code)}`, body),

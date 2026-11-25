@@ -6,6 +6,8 @@ import { HelpTip } from "../components/HelpTip.tsx";
 import { ReplayReview } from "../components/ReplayReview.tsx";
 import { StarToggle } from "../components/StarToggle.tsx";
 import panels from "../components/ReplayPanels.module.css";
+import { MatchNotes } from "../components/match/MatchNotes.tsx";
+import { TagEditor } from "../components/Tags.tsx";
 import { GoalTimeline } from "../components/match/GoalTimeline.tsx";
 import { ReplayAnalysis } from "../components/match/ReplayAnalysis.tsx";
 import { Scoreboard } from "../components/match/Scoreboard.tsx";
@@ -75,12 +77,13 @@ export function MatchPage() {
             arenaName(s.arena),
             `${formatDay(s.startedAt)}, ${formatTime(s.startedAt)}`,
             formatMinutes(s.durationSeconds),
-            s.teammates.length ? `With ${s.teammates.join(", ")}` : null,
           ]
             .filter(Boolean)
             .join(" · ")}
         </p>
         {s.kind === "match" && <LeftEarly session={s} />}
+        {s.kind === "match" && <TagEditor sessionId={s.id} tags={s.tags} teammates={s.teammates} />}
+        <MatchNotes key={s.id} sessionId={s.id} note={s.note} />
       </div>
 
       {s.kind === "match" ? (

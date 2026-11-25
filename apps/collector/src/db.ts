@@ -46,6 +46,14 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS sessions_started ON sessions(started_at);
 CREATE INDEX IF NOT EXISTS sessions_guid ON sessions(match_guid);
 
+-- Tags I put on a match. No foreign key: saving a session replaces its row,
+-- and tags must survive that (re-ingest); deleting a match removes them.
+CREATE TABLE IF NOT EXISTS session_tags (
+  session_id TEXT NOT NULL,
+  tag TEXT NOT NULL COLLATE NOCASE,
+  PRIMARY KEY (session_id, tag)
+);
+
 CREATE TABLE IF NOT EXISTS session_players (
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   player_key TEXT NOT NULL,
@@ -260,7 +268,11 @@ export class StatsDb {
       .all(span.from, span.to) as { id: string; match_guid: string | null }[];
     const stale = rows.filter((r) => !keepSet.has(r.id));
     const del = this.db.prepare("DELETE FROM sessions WHERE id = ?");
-    for (const r of stale) del.run(r.id);
+    const untag = this.db.prepare("DELETE FROM session_tags WHERE session_id = ?");
+    for (const r of stale) {
+      del.run(r.id);
+      untag.run(r.id);
+    }
     for (const g of new Set(stale.map((r) => r.match_guid).filter((g): g is string => g !== null))) this.reconcileReplayMatch(g);
     return stale.length;
   }
@@ -357,6 +369,7 @@ export class StatsDb {
         this.db.prepare("DELETE FROM sessions WHERE UPPER(match_guid) = ?").run(guid);
       }
       this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+      this.db.prepare("DELETE FROM session_tags WHERE session_id NOT IN (SELECT id FROM sessions)").run();
       this.db.exec("COMMIT");
     } catch (e) {
       this.db.exec("ROLLBACK");
@@ -619,6 +632,13 @@ export class StatsDb {
       )
       .all() as { sessionId: string; matchGuid: string; endedAt: number; arena: string | null; scoreBlue: number | null; scoreOrange: number | null }[];
     return rows.map((r) => ({ ...r, matchGuid: r.matchGuid.toUpperCase() }));
+  }
+
+  /** Names known teammates have played under (their automatic tags). */
+  knownTeammateNames(): string[] {
+    return (
+      this.db.prepare("SELECT DISTINCT name FROM session_players WHERE is_known_teammate = 1 AND is_me = 0 ORDER BY name COLLATE NOCASE").all() as { name: string }[]
+    ).map((r) => r.name);
   }
 
   /**
@@ -990,6 +1010,56 @@ export class StatsDb {
   }
 
   // --- things I edit ---------------------------------------------------------
+
+  /** My tags on a session, sorted case-insensitively. */
+  tagsFor(id: string): string[] {
+    return (this.db.prepare("SELECT tag FROM session_tags WHERE session_id = ? ORDER BY tag COLLATE NOCASE").all(id) as { tag: string }[]).map((r) => r.tag);
+  }
+
+  /** Every session's tags, for listing many at once. */
+  allSessionTags(): Map<string, string[]> {
+    const out = new Map<string, string[]>();
+    for (const r of this.db.prepare("SELECT session_id, tag FROM session_tags ORDER BY tag COLLATE NOCASE").all() as { session_id: string; tag: string }[]) {
+      const list = out.get(r.session_id);
+      if (list) list.push(r.tag);
+      else out.set(r.session_id, [r.tag]);
+    }
+    return out;
+  }
+
+  /**
+   * Replace a session's tags: trimmed, inner spaces collapsed, the first of
+   * any that differ only in case, and spelled as other matches already have
+   * the tag. False if there's no such session.
+   */
+  setTags(id: string, tags: readonly string[]): boolean {
+    if (!this.sessionRow(id)) return false;
+    const byKey = new Map<string, string>();
+    for (const t of tags.map((t) => t.trim().replace(/\s+/g, " ")).filter(Boolean)) if (!byKey.has(t.toLowerCase())) byKey.set(t.toLowerCase(), t);
+    const used = this.db.prepare("SELECT tag FROM session_tags WHERE tag = ? AND session_id != ? LIMIT 1");
+    const clean = [...byKey.values()].map((t) => (used.get(t, id) as { tag: string } | undefined)?.tag ?? t);
+    this.db.exec("BEGIN");
+    try {
+      this.db.prepare("DELETE FROM session_tags WHERE session_id = ?").run(id);
+      const add = this.db.prepare("INSERT INTO session_tags (session_id, tag) VALUES (?, ?)");
+      for (const t of clean) add.run(id, t);
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+    return true;
+  }
+
+  /** Every tag in use, with how many matches have it, most used first. */
+  tagCounts(): { tag: string; count: number }[] {
+    return this.db
+      .prepare(
+        `SELECT t.tag AS tag, COUNT(*) AS count FROM session_tags t JOIN sessions s ON s.id = t.session_id
+         GROUP BY t.tag COLLATE NOCASE ORDER BY count DESC, t.tag COLLATE NOCASE`,
+      )
+      .all() as { tag: string; count: number }[];
+  }
 
   /**
    * SQLite's data_version: changes when another connection (npm run ingest,

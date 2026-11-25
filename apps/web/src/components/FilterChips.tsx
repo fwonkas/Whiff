@@ -4,6 +4,7 @@ import type { SummaryResponse } from "@rl/api-contract";
 import { useSummary } from "../lib/api.tsx";
 import type { MatchFilters } from "../router.tsx";
 import styles from "./FilterChips.module.css";
+import { TagLabel } from "./Tags.tsx";
 import { rangeLabel, rangeOf, type DayRange } from "../lib/date-range.ts";
 
 /**
@@ -75,16 +76,17 @@ export function FilterChips({
   const counts = all?.filterCounts;
   // The current mode and teammates, for the result chips.
   // Results within the replay filter; replay states within the result filter (the page's own query, so cached).
-  const here = useSummary({ teamSize: current.teamSize, playlist: current.playlist, with: current.with, replay: current.replay, starred: current.starred, ...dates }).data
+  const here = useSummary({ teamSize: current.teamSize, playlist: current.playlist, with: current.with, replay: current.replay, starred: current.starred, tag: current.tag, ...dates }).data
     ?.resultCounts;
   // The page's own query (every filter), so cached: replay states within the result filter, and the star chip's count.
   const pageSummary = useSummary(
     menus
-      ? { teamSize: current.teamSize, playlist: current.playlist, with: current.with, result: current.result, replay: current.replay, starred: current.starred, ...dates }
+      ? { teamSize: current.teamSize, playlist: current.playlist, with: current.with, result: current.result, replay: current.replay, starred: current.starred, tag: current.tag, ...dates }
       : {},
   ).data;
   const replayHere = pageSummary?.replayCounts;
   const starredHere = pageSummary?.starredCounts;
+  const tagsHere = pageSummary?.tagCounts;
 
   const sizeProblem = (size: Size): string | null => {
     if (!counts) return null;
@@ -232,6 +234,7 @@ export function FilterChips({
           toggle={() => void navigate({ to, search: (prev: MatchFilters) => ({ ...prev, starred: prev.starred ? undefined : (true as const) }) })}
         />
       )}
+      {extras && menus && tagsHere && <TagMenu tags={tagsHere} current={current.tag} />}
       {extras && here && !menus && (
         <ResultChips
           counts={here}
@@ -452,6 +455,54 @@ function StarredChip({ counts, on, toggle }: { counts: { total: number; starred:
   );
 }
 
+/**
+ * Matches with one tag: my own or a known teammate's (automatic). Counted
+ * within the other filters. Hidden until there's a tag to pick.
+ */
+function TagMenu({ tags, current }: { tags: { tag: string; count: number; teammate: boolean }[]; current: string | undefined }) {
+  const lower = current?.toLowerCase();
+  const chosen = tags.find((t) => t.tag.toLowerCase() === lower);
+  if (tags.length === 0 && !current) return null;
+  const option = (t: { tag: string; count: number; teammate: boolean } | null, close: () => void) => (
+    <Link
+      key={t?.tag ?? ""}
+      to="/sessions"
+      search={(prev: MatchFilters) => ({ ...prev, tag: t?.tag })}
+      className={styles.option}
+      onClick={close}
+      activeOptions={{ includeSearch: true, explicitUndefined: true }}
+    >
+      {t ? <TagLabel tag={t.tag} teammate={t.teammate} /> : "Any tag"}
+      {t && <span className="num muted">{t.count}</span>}
+    </Link>
+  );
+  return (
+    <div className="chips" role="group" aria-label="Tag">
+      {/* Just an icon until a tag is picked, so the filters still fit one row at 1280 px. */}
+      <ChipMenu
+        label={
+          <>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" className={styles.tagIcon}>
+              <path d="M1.5 2.5v4.6l7.4 7.4 5.6-5.6-7.4-7.4H2.5z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+              <circle cx="5" cy="5" r="1.2" fill="currentColor" />
+            </svg>
+            {current ? <span className={styles.tagName}>{chosen?.tag ?? current}</span> : <span className="visually-hidden">Any tag</span>}
+          </>
+        }
+        active={current !== undefined}
+        name="Tag"
+      >
+        {(close) => (
+          <>
+            {option(null, close)}
+            {tags.map((t) => option(t, close))}
+          </>
+        )}
+      </ChipMenu>
+    </div>
+  );
+}
+
 /** The result filter as a dropdown chip, with counts. */
 function ResultMenu({ to, counts, current }: { to: "/sessions" | "/trends"; counts: { total: number; win: number; loss: number; mvp: number }; current: Result | undefined }) {
   return (
@@ -493,7 +544,7 @@ export function Off({ label, why }: { label: ReactNode; why: string }) {
 }
 
 /**
- * The date filter as a chip: "All dates" until a range is set, then the
+ * The date filter as a chip: a calendar ("All dates") until a range is set, then the
  * range. It opens a small form with From and To (either can be left open)
  * and All dates. Changes apply as they're made, as a patch on the URL's
  * current range (so quick edits don't undo each other).
@@ -514,7 +565,18 @@ export function DateRangeChip({ value, onChange }: { value: DayRange; onChange: 
   return (
     <div className="chips" role="group" aria-label="Dates">
       <button ref={button} type="button" className={`chip ${styles.other}`} popoverTarget={id} aria-current={set ? "page" : undefined} aria-haspopup="dialog">
-        {rangeLabel(value)}
+        {/* A calendar until a range is set, so the Sessions filters fit one row at 1280 px. */}
+        {set ? (
+          rangeLabel(value)
+        ) : (
+          <>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <rect x="1.75" y="3" width="12.5" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M1.75 6.5h12.5M5 1.5v3M11 1.5v3" stroke="currentColor" strokeWidth="1.4" />
+            </svg>
+            <span className="visually-hidden">{rangeLabel(value)}</span>
+          </>
+        )}
         <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
           <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" />
         </svg>

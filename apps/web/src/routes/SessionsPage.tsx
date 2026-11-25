@@ -6,6 +6,7 @@ import { FilterChips } from "../components/FilterChips.tsx";
 import { useReplayControlsShown } from "../lib/replay-controls.ts";
 import { ReplayAction } from "../components/ReplayAction.tsx";
 import { StarToggle } from "../components/StarToggle.tsx";
+import { TagList } from "../components/Tags.tsx";
 import { HelpTip } from "../components/HelpTip.tsx";
 import { AtRiskLine } from "../components/ReplayPanels.tsx";
 import { useConfig, useSessions, useSummary } from "../lib/api.tsx";
@@ -43,7 +44,8 @@ export function SessionsPage() {
     filters.playlist !== undefined ||
     filters.result !== undefined ||
     filters.replay !== undefined ||
-    filters.starred !== undefined;
+    filters.starred !== undefined ||
+    filters.tag !== undefined;
   const filtered = matchesOnly || filters.from !== undefined || filters.to !== undefined;
   const q = {
     teamSize: filters.teamSize,
@@ -52,6 +54,7 @@ export function SessionsPage() {
     result: filters.result,
     replay: filters.replay,
     starred: filters.starred,
+    tag: filters.tag,
     ...rangeOf(filters),
   };
   // Without a match filter, practice comes along too, for the per-day practice minutes.
@@ -435,9 +438,9 @@ function SessionList({ items, more }: { items: SessionListItem[]; more: More }) 
   const matches = items.filter((s) => s.kind === "match");
   const oldest = matches.at(-1);
   const cols = useColumns("sessions");
-  // A narrower list (beside the cards) uses tighter tracks, then drops Notes; CSS picks by the list's own width.
+  // A narrower list (beside the cards) uses tighter tracks, then drops Tags; CSS picks by the list's own width.
   const compact = gridVars(SESSION_TRACKS_COMPACT, cols) as Record<string, string>;
-  const tight = gridVars(SESSION_TRACKS_COMPACT, new Set([...cols].filter((c) => c !== "notes"))) as Record<string, string>;
+  const tight = gridVars(SESSION_TRACKS_COMPACT, new Set([...cols].filter((c) => c !== "tags"))) as Record<string, string>;
   const grid = {
     ...gridVars(SESSION_TRACKS, cols),
     "--cols-compact": compact["--cols"],
@@ -463,7 +466,7 @@ function SessionList({ items, more }: { items: SessionListItem[]; more: More }) 
         {cols.has("stats") && <span className={styles.line}>Stats</span>}
         {cols.has("touches") && <span className={styles.touches}>Touches</span>}
         {cols.has("share") && <span className={styles.share}>Touch share</span>}
-        {cols.has("notes") && <span className={styles.notes}>Notes</span>}
+        {cols.has("tags") && <span className={styles.tags}>Tags</span>}
         {replayColumn && <span className={styles.replayHead}>Replay</span>}
       </div>
       {groupByDay(items).map((day) => {
@@ -538,7 +541,7 @@ const SESSION_TRACKS: Record<SessionColumn, string> = {
   stats: "150px",
   touches: "64px",
   share: "150px",
-  notes: "minmax(90px, 1fr)",
+  tags: "minmax(90px, 1fr)",
 };
 const SESSION_TRACKS_COMPACT: Record<SessionColumn, string> = {
   ...SESSION_TRACKS,
@@ -550,10 +553,6 @@ const SESSION_TRACKS_COMPACT: Record<SessionColumn, string> = {
 };
 
 function MatchRow({ m, cols, grid }: { m: SessionListItem; cols: Set<SessionColumn>; grid: CSSProperties }) {
-  const notes = [
-    m.outcome === "abandoned" && "Left early",
-    m.teammates.length > 0 && `With ${m.teammates.join(", ")}`,
-  ].filter(Boolean);
   const score = `${m.goalsFor ?? "?"}–${m.goalsAgainst ?? "?"}`;
   return (
     <Link to="/sessions/$id" params={{ id: m.id }} className={styles.row} style={grid} aria-label={cols.has("time") ? undefined : rowLabel(m)}>
@@ -606,7 +605,7 @@ function MatchRow({ m, cols, grid }: { m: SessionListItem; cols: Set<SessionColu
           <span className="num">{formatPercent(m.touchShare)}</span>
         </span>
       )}
-      {cols.has("notes") && <span className={`${styles.notes} muted`}>{notes.join(" · ")}</span>}
+      {cols.has("tags") && <TagList className={styles.tags} teammates={m.teammates} tags={m.tags} />}
     </Link>
   );
 }
