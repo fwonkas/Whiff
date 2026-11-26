@@ -577,12 +577,14 @@ const SHORTCUT_LABELS: Record<ShortcutAction, { label: string; hint: string }> =
   pause: { label: "Pause recording", hint: "Pauses or resumes recording." },
   dashboard: { label: "Open dashboard", hint: "Brings up this window." },
   replayAgain: { label: "Replay the goal again", hint: "Back to where the last replay jump started." },
+  starReplay: { label: "Star this replay's match", hint: "Stars (or unstars) the match whose replay is playing in the game." },
 };
 const DEFAULT_SHORTCUTS: Record<ShortcutAction, string> = {
   backfill: "CommandOrControl+Alt+B",
   pause: "CommandOrControl+Alt+P",
   dashboard: "CommandOrControl+Alt+D",
   replayAgain: "CommandOrControl+Alt+R",
+  starReplay: "CommandOrControl+Alt+S",
 };
 
 /** "CommandOrControl+Alt+B" → "Ctrl+Alt+B". */

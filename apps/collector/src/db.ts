@@ -634,6 +634,14 @@ export class StatsDb {
     return rows.map((r) => ({ ...r, matchGuid: r.matchGuid.toUpperCase() }));
   }
 
+  /** The saved match with this GUID (the live recording before one rebuilt from its replay). */
+  matchIdByGuid(guid: string): string | null {
+    const row = this.db
+      .prepare("SELECT id FROM sessions WHERE kind = 'match' AND upper(match_guid) = ? ORDER BY source = 'live' DESC, started_at DESC LIMIT 1")
+      .get(guid.toUpperCase()) as { id: string } | undefined;
+    return row?.id ?? null;
+  }
+
   /** Names known teammates have played under (their automatic tags). */
   knownTeammateNames(): string[] {
     return (

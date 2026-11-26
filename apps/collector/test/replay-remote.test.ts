@@ -180,6 +180,27 @@ describe("ReplayRemote", () => {
     expect(sent.at(-1)).toEqual({ Command: "LoadReplay", Data: { FileName: REPLAY } });
   });
 
+  it("knows the match of the replay playing, from its ticks, until it's left (the star shortcut)", async () => {
+    const r = new ReplayRemote({ send: () => true });
+    const seen = new Map<string, Set<string | null>>();
+    for await (const e of readRecording(fixture("replay-backfill"))) {
+      if (e.kind !== "message") continue;
+      r.ingest(e.receivedAt, e.msg);
+      if (e.msg.Event === "ReplayCreated") expect(r.openMatchGuid(e.receivedAt)).toBeNull();
+      const open = r.openReplay;
+      if (open) seen.set(open, (seen.get(open) ?? new Set()).add(r.openMatchGuid(e.receivedAt)));
+    }
+    // Each replay names one match, its own.
+    const guids = [...seen.values()].map((s) => [...s].filter(Boolean));
+    expect(guids.length).toBe(2);
+    for (const g of guids) expect(g).toHaveLength(1);
+    expect(guids[0]![0]).not.toBe(guids[1]![0]);
+    // Left for the menu: no match.
+    const at = 1e15;
+    r.ingest(at, { Event: "MatchDestroyed", Data: {} } as GameMessage);
+    expect(r.openMatchGuid(at + 10_000)).toBeNull();
+  });
+
   it("says so when the game isn't connected", () => {
     const r = new ReplayRemote({ send: () => false });
     expect(r.goto(REPLAY, 10, 0, 0)).toEqual({ ok: false, reason: "Rocket League isn't connected" });

@@ -104,6 +104,15 @@ describe("StatsDb", () => {
     db.close();
   });
 
+  it("finds a match by its GUID, in any case (the star shortcut)", async () => {
+    const db = new StatsDb(":memory:");
+    const m = (await ingestRecording(fixture("ranked-1s-win"), config)).sessions.find((s) => s.kind === "match")!;
+    db.saveSession(m);
+    expect(db.matchIdByGuid(m.matchGuid!.toLowerCase())).toBe(m.id);
+    expect(db.matchIdByGuid("00000000000000000000000000000000")).toBeNull();
+    db.close();
+  });
+
   it("looks up the replay frame for a match moment", async () => {
     const db = new StatsDb(":memory:");
     const { sessions } = await ingestRecording(fixture("replay-ot-seeks"), config);

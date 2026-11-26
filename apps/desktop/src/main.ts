@@ -72,13 +72,14 @@ let quitting = false;
  * (Electron accelerator strings such as "CommandOrControl+Alt+B"; null turns
  * one off). They work while the game has focus.
  */
-type ShortcutAction = "backfill" | "pause" | "dashboard" | "replayAgain";
+type ShortcutAction = "backfill" | "pause" | "dashboard" | "replayAgain" | "starReplay";
 type Shortcuts = Record<ShortcutAction, string | null>;
 const DEFAULT_SHORTCUTS: Shortcuts = {
   backfill: "CommandOrControl+Alt+B",
   pause: "CommandOrControl+Alt+P",
   dashboard: "CommandOrControl+Alt+D",
   replayAgain: "CommandOrControl+Alt+R",
+  starReplay: "CommandOrControl+Alt+S",
 };
 let shortcuts: Shortcuts = { ...DEFAULT_SHORTCUTS };
 
@@ -143,6 +144,13 @@ const shortcutActions: Record<ShortcutAction, () => void> = {
   replayAgain: () => {
     const r = collector?.replayAgain();
     if (r && !r.ok) notify("Can't jump back", `${r.reason[0]!.toUpperCase()}${r.reason.slice(1)}.`);
+  },
+  starReplay: () => {
+    const r = collector?.toggleStarOpenReplay();
+    if (!r) return;
+    // Clicking the notification opens the match.
+    if (r.ok) notify(r.starred ? "Starred" : "Unstarred", r.label, undefined, `/sessions/${encodeURIComponent(r.sessionId)}`);
+    else notify("Can't star this replay", `${r.reason[0]!.toUpperCase()}${r.reason.slice(1)}.`);
   },
 };
 

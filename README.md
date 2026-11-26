@@ -70,6 +70,7 @@ They work while the game is in front. Change them in Settings → Shortcuts.
 | `Ctrl+Alt+P` | Pause or resume recording |
 | `Ctrl+Alt+B` | Start or stop playing saved replays |
 | `Ctrl+Alt+R` | Go back to where the last replay jump started |
+| `Ctrl+Alt+S` | Star the match whose replay is playing in the game (again to unstar it) |
 
 ## Settings
 

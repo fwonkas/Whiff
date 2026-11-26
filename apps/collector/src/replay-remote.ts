@@ -104,6 +104,8 @@ interface Jump {
 export class ReplayRemote {
   /** The replay open in the game, if any. */
   private open: string | null = null;
+  /** Its match's GUID, from its ticks (a replay's ticks carry the original match's). */
+  private openGuid: string | null = null;
   private pending: { replayId: string; frame: number; since: number; camera: ReplayCamera } | null = null;
   private pov: { camera: ReplayCamera; frame: number; since: number } | null = null;
   private timer: unknown = null;
@@ -133,6 +135,12 @@ export class ReplayRemote {
 
   get openReplay(): string | null {
     return this.open;
+  }
+
+  /** The match of the replay open in the game, once a tick has named it. Null when none is open (or it was left). */
+  openMatchGuid(at: number = this.now): string | null {
+    if (this.open === null || (this.destroyedAt !== null && at - this.destroyedAt > REPLAY_LEFT_MS)) return null;
+    return this.openGuid;
   }
 
   /** Go to `frame` of the replay, `leadSeconds` early so the play leading up to it shows. */
@@ -197,6 +205,7 @@ export class ReplayRemote {
     switch (msg.Event) {
       case "ReplayCreated": {
         this.open = msg.Data.FileName.toUpperCase();
+        this.openGuid = null;
         this.liveTicks = 0;
         if (this.watching === this.open) this.events.send(commands.speed(1));
         this.watching = null;
@@ -228,6 +237,7 @@ export class ReplayRemote {
         if (this.seekSentAt !== null && at - this.seekSentAt > SEEK_TAKES_MS) this.seekSentAt = null;
         if (msg.Data.Game.bReplay) {
           this.liveTicks = 0;
+          if (msg.Data.MatchGuid) this.openGuid = msg.Data.MatchGuid.toUpperCase();
           this.frame = msg.Data.Game.Frame;
           const f = this.frame;
           if (this.stopAfter !== null && f !== undefined && this.seekSentAt === null) {
@@ -253,6 +263,7 @@ export class ReplayRemote {
   /** The game closed. */
   reset(): void {
     this.open = null;
+    this.openGuid = null;
     this.destroyedAt = null;
     this.pending = null;
     this.stopAfter = null;

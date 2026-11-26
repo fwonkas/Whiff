@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { WebSocketServer, type WebSocket as WsClient } from "ws";
 import { DEFAULT_UPLOAD_RULES, type UploadRules } from "@rl/api-contract";
-import type { ConfigPatch, ConfigPatchResponse, ConfigResponse, LaunchGameResponse, LiveMessage, ReplayAnalysisResponse, ReplayGotoResponse, ReplayMatchItem, ReplaysResponse } from "@rl/api-contract";
+import type { ConfigPatch, ConfigPatchResponse, ConfigResponse, LaunchGameResponse, LiveMessage, ReplayAnalysisResponse, ReplayGotoResponse, ReplayMatchItem, ReplaysResponse, SessionListItem } from "@rl/api-contract";
 import type { CollectorConfig, Session } from "@rl/domain";
 import { GameCommand, parseMessage } from "@rl/schema";
 import { createApi } from "./api.ts";
@@ -101,6 +101,15 @@ export interface CollectorStatus {
   lastSession: { kind: string; startedAt: number; outcome: string | null } | null;
 }
 
+export type StarReplayResult = { ok: true; starred: boolean; sessionId: string; label: string } | { ok: false; reason: string };
+
+/** "Ranked Doubles 3–1, Nov 21 8:13 PM": which match a shortcut starred. */
+export function starLabel(m: Pick<SessionListItem, "playlistName" | "goalsFor" | "goalsAgainst" | "startedAt">): string {
+  const score = m.goalsFor !== null && m.goalsAgainst !== null ? ` ${m.goalsFor}–${m.goalsAgainst}` : "";
+  const when = new Date(m.startedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).replace(",", "");
+  return `${m.playlistName ?? "Match"}${score}, ${when}`;
+}
+
 export interface RunningCollector {
   port: number;
   db: StatsDb;
@@ -129,6 +138,8 @@ export interface RunningCollector {
   fetchReplays(sessionIds?: string[]): Promise<{ outcomes: FetchOutcome[]; error?: string }>;
   /** Back to where the last replay jump started (a keyboard shortcut in the desktop app). */
   replayAgain(): ReplayGotoResponse;
+  /** Star the match of the replay open in the game, or unstar it if it's starred (a keyboard shortcut in the desktop app). */
+  toggleStarOpenReplay(): StarReplayResult;
   /** Every match's replay status, and what can be done about the gaps (the Replays screen). */
   replays(): ReplaysResponse;
   stop(): Promise<void>;
@@ -777,6 +788,18 @@ export async function startCollector(opts: CollectorOptions): Promise<RunningCol
     },
     backfillProgress: () => backfill.progress(),
     replayAgain: () => replayControl() ?? remote.again(Date.now()),
+    toggleStarOpenReplay(): StarReplayResult {
+      if (!gameConnected || remote.openReplay === null) return { ok: false, reason: "no replay is open in Rocket League" };
+      const guid = remote.openMatchGuid(Date.now());
+      if (!guid) return { ok: false, reason: "the replay hasn't started playing yet" };
+      const id = db.matchIdByGuid(guid);
+      const item = id ? service.listItem(id) : null;
+      if (!id || !item) return { ok: false, reason: "this replay's match isn't in Whiff" };
+      const starred = !item.starred;
+      db.updateSession(id, { starred });
+      service.invalidate(id);
+      return { ok: true, starred, sessionId: id, label: starLabel(item) };
+    },
     fetchReplays,
     replays(): ReplaysResponse {
       const status = service.replayStatus();

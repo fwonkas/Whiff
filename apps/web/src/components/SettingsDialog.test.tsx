@@ -40,7 +40,7 @@ const config: ConfigResponse = {
   ballchasingUpload: true,
   ballchasingUploads: DEFAULT_UPLOAD_RULES,
   ballchasingTokenSet: false,
-  shortcuts: { backfill: "CommandOrControl+Alt+B", pause: "CommandOrControl+Alt+P", dashboard: "CommandOrControl+Alt+D", replayAgain: "CommandOrControl+Alt+R" },
+  shortcuts: { backfill: "CommandOrControl+Alt+B", pause: "CommandOrControl+Alt+P", dashboard: "CommandOrControl+Alt+D", replayAgain: "CommandOrControl+Alt+R", starReplay: "CommandOrControl+Alt+S" },
   shortcutsUnavailable: [],
   notifications: { launch: true, replays: true, matchHistory: true, recording: true },
   startAtLogin: true,

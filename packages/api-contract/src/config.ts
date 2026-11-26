@@ -6,7 +6,7 @@ import { z } from "zod";
  * unknown keys in it are kept.
  */
 
-export const SHORTCUT_ACTIONS = ["backfill", "pause", "dashboard", "replayAgain"] as const;
+export const SHORTCUT_ACTIONS = ["backfill", "pause", "dashboard", "replayAgain", "starReplay"] as const;
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number];
 
 /** Desktop notifications by kind. Problems (something failed) always show. */
