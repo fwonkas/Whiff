@@ -30,7 +30,9 @@ export const PLAYLISTS: Record<
    * with that match's rules and mode (this one after a ranked match), teams
    * named Challenger and Defender; was "Unknown playlist". Neither ranked nor
    * casual, and never counts toward rank: kept whatever the casual setting
-   * says, and left out of standard records like the extra modes.
+   * says, and left out of standard records like the extra modes. The game's
+   * replay list labels its replays "Casual" (Joe, 2026-11-26); ballchasing
+   * uploads still go under the Ranked rule, since `casual` isn't set.
    */
   53: { name: "Honor Duel", mode: "match", teamSize: 1, ranked: false, nonStandard: true },
   9: { name: "Freeplay", mode: "freeplay" },
