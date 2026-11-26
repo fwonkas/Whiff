@@ -24,6 +24,8 @@ export function useLiveStatus(): { connected: boolean; gameConnected: boolean } 
     let closed = false;
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     let wasOpen = false;
+    // The game's state as last heard (undefined until the first status after connecting).
+    let lastGame: boolean | undefined;
     const refresh = () => {
       clearTimeout(refreshTimer);
       refreshTimer = setTimeout(
@@ -43,10 +45,16 @@ export function useLiveStatus(): { connected: boolean; gameConnected: boolean } 
       };
       ws.onmessage = (e) => {
         const m = JSON.parse(String(e.data)) as LiveMessage;
-        if (m.type === "status") setState({ connected: true, gameConnected: m.gameConnected });
+        if (m.type === "status") {
+          setState({ connected: true, gameConnected: m.gameConnected });
+          // The game started or closed: queries that carry it (the Play and Watch buttons) are out of date.
+          if (lastGame !== undefined && lastGame !== m.gameConnected) refresh();
+          lastGame = m.gameConnected;
+        }
         if (m.type === "session" || m.type === "changed") refresh();
       };
       ws.onclose = () => {
+        lastGame = undefined;
         setState({ connected: false, gameConnected: false });
         if (!closed) retry = setTimeout(open, 3000);
       };

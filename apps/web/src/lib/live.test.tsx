@@ -69,4 +69,23 @@ describe("the live feed keeps the screens up to date", () => {
     expect(invalidate).toHaveBeenCalledTimes(1);
     expect(hook.result.current.connected).toBe(true);
   });
+
+  it("fetches again when the game starts or closes, so the Play buttons follow (2026-11-26)", () => {
+    const { hook, invalidate, socket } = setup();
+    act(() => socket().onopen!());
+    // The status on connecting is no change.
+    act(() => socket().send({ type: "status", gameConnected: false }));
+    act(() => void vi.advanceTimersByTime(300));
+    expect(invalidate).not.toHaveBeenCalled();
+    act(() => socket().send({ type: "status", gameConnected: true }));
+    expect(hook.result.current.gameConnected).toBe(true);
+    act(() => void vi.advanceTimersByTime(300));
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    act(() => socket().send({ type: "status", gameConnected: true }));
+    act(() => void vi.advanceTimersByTime(300));
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    act(() => socket().send({ type: "status", gameConnected: false }));
+    act(() => void vi.advanceTimersByTime(300));
+    expect(invalidate).toHaveBeenCalledTimes(2);
+  });
 });
