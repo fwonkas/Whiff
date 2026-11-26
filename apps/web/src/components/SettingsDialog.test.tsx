@@ -42,7 +42,7 @@ const config: ConfigResponse = {
   ballchasingTokenSet: false,
   shortcuts: { backfill: "CommandOrControl+Alt+B", pause: "CommandOrControl+Alt+P", dashboard: "CommandOrControl+Alt+D", replayAgain: "CommandOrControl+Alt+R", starReplay: "CommandOrControl+Alt+S" },
   shortcutsUnavailable: [],
-  notifications: { launch: true, replays: true, matchHistory: true, recording: true },
+  notifications: { launch: true, replays: true, matchHistory: true, recording: true, stars: true },
   startAtLogin: true,
   port: 49200,
   allowLan: false,

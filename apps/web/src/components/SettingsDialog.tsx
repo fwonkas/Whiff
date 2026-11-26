@@ -664,6 +664,7 @@ const NOTIFICATION_LABELS: Record<NotificationKind, { label: string; hint: strin
   replays: { label: "Replay playback and downloads", hint: "Progress while playing saved replays or getting them from ballchasing." },
   matchHistory: { label: "Match History warnings", hint: "Before a match with no saved replay leaves the game’s Match History." },
   recording: { label: "Recording", hint: "Recording paused or resumed, and your player recognized." },
+  stars: { label: "Stars", hint: "A match starred or unstarred with the shortcut." },
 };
 
 function NotificationsPanel({ config, save }: PanelProps) {

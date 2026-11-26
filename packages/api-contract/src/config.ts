@@ -10,7 +10,7 @@ export const SHORTCUT_ACTIONS = ["backfill", "pause", "dashboard", "replayAgain"
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number];
 
 /** Desktop notifications by kind. Problems (something failed) always show. */
-export const NOTIFICATION_KINDS = ["launch", "replays", "matchHistory", "recording"] as const;
+export const NOTIFICATION_KINDS = ["launch", "replays", "matchHistory", "recording", "stars"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export const Theme = z.enum(["auto", "light", "dark"]);

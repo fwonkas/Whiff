@@ -149,7 +149,7 @@ const shortcutActions: Record<ShortcutAction, () => void> = {
     const r = collector?.toggleStarOpenReplay();
     if (!r) return;
     // Clicking the notification opens the match.
-    if (r.ok) notify(r.starred ? "Starred" : "Unstarred", r.label, undefined, `/sessions/${encodeURIComponent(r.sessionId)}`);
+    if (r.ok) notify(r.starred ? "Starred" : "Unstarred", r.label, "stars", `/sessions/${encodeURIComponent(r.sessionId)}`);
     else notify("Can't star this replay", `${r.reason[0]!.toUpperCase()}${r.reason.slice(1)}.`);
   },
 };
