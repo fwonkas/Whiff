@@ -169,6 +169,12 @@ describe("dashboard addresses", () => {
 });
 
 describe("the Sessions columns setting", () => {
+  it("reads an unknown tray icon as the default", () => {
+    expect(UiSettings.parse({}).trayIcon).toBe("default");
+    expect(UiSettings.parse({ trayIcon: "black" }).trayIcon).toBe("black");
+    expect(UiSettings.parse({ trayIcon: "purple" }).trayIcon).toBe("default");
+  });
+
   it("reads the old Notes column as Tags", () => {
     expect(UiSettings.parse({ sessionsColumns: ["result", "notes", "tags"] }).sessionsColumns).toEqual(["result", "tags"]);
     expect(UiSettings.parse({}).sessionsColumns).toBeNull();

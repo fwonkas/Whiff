@@ -315,6 +315,20 @@ function GeneralPanel({ config, save }: PanelProps) {
             </label>
           ))}
         </div>
+        {config.desktop && (
+          <Row label="Tray icon" htmlFor={`${id}-tray`} hint="White or black suits a dark or light taskbar.">
+            <Select
+              id={`${id}-tray`}
+              value={config.ui.trayIcon}
+              onChange={(v) => ui({ trayIcon: v })}
+              options={[
+                { value: "default", label: "Default" },
+                { value: "white", label: "White" },
+                { value: "black", label: "Black" },
+              ]}
+            />
+          </Row>
+        )}
       </Section>
 
       {config.desktop && (

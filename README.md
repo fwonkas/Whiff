@@ -34,7 +34,7 @@ It reads the game's official [Stats API](https://www.rocketleague.com/developer/
 2. **Play.** Start a match or some freeplay. Whiff recognizes you from your first match and asks once, in the dashboard, to confirm it picked the right player.
 3. **Open the dashboard:** click the tray icon (it opens by itself the first time). Closing the window keeps Whiff running in the tray. The dashboard keeps itself up to date (new matches, saved and analyzed replays, uploads), so there's no need to refresh it.
 
-The tray icon turns gray while recording is paused and gets an orange badge when an update is ready; hover over it for what Whiff is doing. Right-click it for the menu: launch Rocket League, open the dashboard, pause recording, replays, settings, updates and quit.
+The tray icon turns gray while recording is paused and gets an orange badge when an update is ready; hover over it for what Whiff is doing. Settings → General → Tray icon switches it to all white or all black, to suit your taskbar. Right-click it for the menu: launch Rocket League, open the dashboard, pause recording, replays, settings, updates and quit.
 
 ## Using it
 
@@ -78,7 +78,7 @@ Open them from the gear in the dashboard's header, or **Settings…** in the tra
 
 | Tab | What's there |
 | --- | --- |
-| General | Theme, start at sign-in, opening the dashboard at start, keeping the tray icon on the taskbar, what the Sessions link opens with |
+| General | Theme, the tray icon (Default, White or Black), start at sign-in, opening the dashboard at start, keeping the tray icon on the taskbar, what the Sessions link opens with |
 | Player | Your player ID (found for you) and known teammates, who split your matches into solo and with teammates |
 | Game & replays | Your replays at a glance, playing them, replay review lead time, whether to keep casual matches, your practice speed, the replays folder |
 | Shortcuts | The keyboard shortcuts |

@@ -10,6 +10,8 @@ export const SHORTCUT_ACTIONS = ["backfill", "pause", "dashboard", "replayAgain"
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number];
 
 /** Desktop notifications by kind. Problems (something failed) always show. */
+export const TRAY_ICONS = ["default", "white", "black"] as const;
+export type TrayIcon = (typeof TRAY_ICONS)[number];
 export const NOTIFICATION_KINDS = ["launch", "replays", "matchHistory", "recording", "stars"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -111,6 +113,8 @@ export const UiSettings = z.object({
   quitAfterReplays: z.boolean().default(false),
   /** Desktop app: open the dashboard every time Whiff starts, start at sign-in included (it always does on the very first start). */
   openDashboardOnLaunch: z.boolean().default(false),
+  /** Desktop app: the tray icon, in color or one color to suit a light or dark taskbar. */
+  trayIcon: z.enum(TRAY_ICONS).catch("default").default("default"),
 });
 export type UiSettings = z.infer<typeof UiSettings>;
 export const DEFAULT_UI: UiSettings = UiSettings.parse({});

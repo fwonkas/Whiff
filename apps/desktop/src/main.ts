@@ -30,6 +30,8 @@ import {
   type LaunchGameResponse,
   type DesktopHooks,
   type NotificationKind,
+  TRAY_ICONS,
+  type TrayIcon,
   notificationSettings,
   MATCH_HISTORY_WARN_LAST,
   type RunningCollector,
@@ -468,7 +470,14 @@ function checkMatchHistory() {
 }
 
 /** The app icon, grayed out while recording is paused, with a badge once an update is ready. */
-const icon = (paused: boolean) => nativeImage.createFromPath(join(assets, `tray${paused ? "-paused" : ""}${updateReady ? "-update" : ""}.png`));
+/** The tray icon set chosen in Settings → General (tray-white-*.png, tray-black-*.png or the color tray-*.png). */
+const readTrayIcon = (): TrayIcon => {
+  const v = (readConfigFile().ui as { trayIcon?: unknown } | undefined)?.trayIcon;
+  return (TRAY_ICONS as readonly unknown[]).includes(v) ? (v as TrayIcon) : "default";
+};
+let trayIcon: TrayIcon = "default";
+const icon = (paused: boolean) =>
+  nativeImage.createFromPath(join(assets, `tray${trayIcon === "default" ? "" : `-${trayIcon}`}${paused ? "-paused" : ""}${updateReady ? "-update" : ""}.png`));
 
 function statusLine(s: CollectorStatus): string {
   if (s.paused) return "Recording paused";
@@ -1027,6 +1036,7 @@ const desktopHooks: DesktopHooks = {
   },
   configChanged(keys) {
     if (keys.includes("shortcuts")) registerShortcuts();
+    if (keys.includes("ui")) trayIcon = readTrayIcon();
     refreshTray();
   },
   update() {
@@ -1123,6 +1133,7 @@ async function start() {
   }
 
   registerShortcuts();
+  trayIcon = readTrayIcon();
   tray = new Tray(icon(false));
   tray.on("click", () => openDashboard());
   refreshTray();

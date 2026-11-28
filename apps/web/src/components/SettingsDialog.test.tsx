@@ -249,6 +249,17 @@ describe("settings dialog", () => {
     expect(api.patchConfig).toHaveBeenLastCalledWith({ knownTeammates: [{ primaryId: "Epic|teammate|0", name: "Teammate" }] });
   });
 
+  it("Appearance picks the tray icon (desktop app)", async () => {
+    const { api } = renderAt("/sessions#settings/general");
+    const dialog = await screen.findByRole("dialog", { name: "Settings" });
+    const tray = await within(dialog).findByRole("combobox", { name: "Tray icon" });
+    expect(within(tray).getAllByRole("option").map((o) => o.textContent)).toEqual(["Default", "White", "Black"]);
+    expect(tray).toHaveDisplayValue("Default");
+    await userEvent.selectOptions(tray, "White");
+    expect(api.patchConfig).toHaveBeenCalledWith({ ui: { trayIcon: "white" } });
+    await waitFor(() => expect(tray).toHaveDisplayValue("White"));
+  });
+
   it("Startup can open the dashboard every time Whiff starts", async () => {
     const { api } = renderAt("/sessions#settings/general");
     const dialog = await screen.findByRole("dialog", { name: "Settings" });
