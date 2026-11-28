@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DEFAULT_UI, DEFAULT_UPLOAD_RULES, type ApiClient, type AppUpdateResponse, type ConfigPatch, type ConfigResponse, type ReplaysResponse } from "@rl/api-contract";
@@ -258,6 +258,19 @@ describe("settings dialog", () => {
     await userEvent.selectOptions(tray, "White");
     expect(api.patchConfig).toHaveBeenCalledWith({ ui: { trayIcon: "white" } });
     await waitFor(() => expect(tray).toHaveDisplayValue("White"));
+  });
+
+  it("a checkbox shows its change while saving, and goes back if the save fails (2026-11-27)", async () => {
+    const { api } = renderAt("/sessions#settings/general");
+    const dialog = await screen.findByRole("dialog", { name: "Settings" });
+    const open = await within(dialog).findByRole("checkbox", { name: "Open the dashboard when Whiff starts" });
+    let fail!: (e: Error) => void;
+    vi.mocked(api.patchConfig).mockImplementationOnce(() => new Promise((_, reject) => (fail = reject)));
+    await userEvent.click(open);
+    // Still saving: no flicker back to the old value.
+    expect(open).toBeChecked();
+    await act(async () => fail(new Error("offline")));
+    await waitFor(() => expect(open).not.toBeChecked());
   });
 
   it("Startup can open the dashboard every time Whiff starts", async () => {

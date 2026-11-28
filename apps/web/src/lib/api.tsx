@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createApiClient, type ApiClient, type ConfigPatch, type OpenTarget, type PatchSessionBody, type SessionsQuery, type SummaryQuery, type TrendsQuery } from "@rl/api-contract";
+import { createApiClient, type ApiClient, type ConfigPatch, type ConfigResponse, type OpenTarget, type PatchSessionBody, type SessionsQuery, type SummaryQuery, type TrendsQuery } from "@rl/api-contract";
 import { cacheUi } from "./ui-prefs.ts";
 
 /**
@@ -172,13 +172,39 @@ export function useConfig() {
  * Teammates, player IDs and the practice speed change what past sessions
  * show, so those refresh everything.
  */
+const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+/** The settings as they'll be once a patch is saved: nested settings (ui, notifications…) merged, lists and values replaced. */
+export function mergePatch<T>(current: T, patch: object): T {
+  if (!isPlainObject(current)) return current;
+  const out: Record<string, unknown> = { ...current };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) continue;
+    out[k] = isPlainObject(v) && isPlainObject(out[k]) ? mergePatch(out[k], v) : v;
+  }
+  return out as T;
+}
+
 export function usePatchConfig() {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (patch: ConfigPatch) => api.patchConfig(patch).catch(refusal),
-    onSuccess: (r, patch) => {
-      if (!r.ok) return;
+    // Show the change at once: a controlled checkbox would otherwise flip back
+    // to the old value until the server answers, then forward again.
+    onMutate: async (patch) => {
+      await queryClient.cancelQueries({ queryKey: keys.config() });
+      const before = queryClient.getQueryData<ConfigResponse>(keys.config());
+      if (before) queryClient.setQueryData(keys.config(), mergePatch(before, patch));
+      return { before };
+    },
+    onError: (_e, _patch, ctx) => {
+      if (ctx?.before) queryClient.setQueryData(keys.config(), ctx.before);
+    },
+    onSuccess: (r, patch, ctx) => {
+      if (!r.ok) {
+        if (ctx?.before) queryClient.setQueryData(keys.config(), ctx.before);
+        return;
+      }
       queryClient.setQueryData(keys.config(), r.config);
       cacheUi(r.config.ui);
       if (patch.knownTeammates || patch.myPrimaryIds || patch.practiceGameSpeed !== undefined || patch.replayDirs !== undefined) {
