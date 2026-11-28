@@ -1,3 +1,4 @@
+// Also renders the white and black one-color tray sets from assets/icon-mono.svg.
 // Renders the app icons from assets/icon.svg and the tray icons from assets/icon-small.svg (the
 // Miss marker: a ball, a target ring and an orange dot just outside it; the small one has a solid,
 // thicker ring and a bigger dot, no connector, so it holds up at 16 px) with Playwright's Chromium:
@@ -15,6 +16,9 @@ const innerOf = (file) =>
   readFileSync(join(out, file), "utf8").replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "").replace(/<title>.*?<\/title>/, "");
 const inner = innerOf("icon.svg");
 const innerSmall = innerOf("icon-small.svg");
+// One-color tray glyph (icon-mono.svg is black; the white set swaps the color): the same ring, ball
+// and dot on a transparent background, for taskbars where the colored tile doesn't suit.
+const innerMono = { black: innerOf("icon-mono.svg"), white: innerOf("icon-mono.svg").replaceAll("#000000", "#ffffff") };
 
 // The tray icon is the small-size app icon, no status dot (Joe: it read as two balls). Paused: grayed
 // out. Update ready: an orange badge with two curved arrows, like Windows Update's.
@@ -40,9 +44,10 @@ const arrows = (cx, cy, r) => {
 };
 const badge = `<circle cx="744" cy="744" r="248" fill="#f7630c" stroke="#ffffff" stroke-width="56"/>${arrows(744, 744, 122)}`;
 
-const svg = (s, { paused = false, update = false, tray = false } = {}) =>
+// Paused: the colored icon is grayed out; the one-color ones can't be, so they fade instead.
+const svg = (s, { paused = false, update = false, tray = false, tone = null } = {}) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 1024 1024">
-    <g ${paused ? 'style="filter: grayscale(1)"' : ""}>${tray ? innerSmall : inner}</g>${update ? badge : ""}</svg>`;
+    <g ${paused ? (tone ? 'opacity="0.45"' : 'style="filter: grayscale(1)"') : ""}>${tone ? innerMono[tone] : tray ? innerSmall : inner}</g>${update ? badge : ""}</svg>`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -63,6 +68,19 @@ for (const [name, opts] of [
 ]) {
   await render(`${name}.png`, 16, { ...opts, tray: true });
   await render(`${name}@2x.png`, 32, { ...opts, tray: true });
+}
+// One-color sets, named tray-<tone>[-paused][-update][@2x].png: tray-white for dark taskbars,
+// tray-black for light ones.
+for (const tone of ["white", "black"]) {
+  for (const [suffix, opts] of [
+    ["", {}],
+    ["-paused", { paused: true }],
+    ["-update", { update: true }],
+    ["-paused-update", { paused: true, update: true }],
+  ]) {
+    await render(`tray-${tone}${suffix}.png`, 16, { ...opts, tone });
+    await render(`tray-${tone}${suffix}@2x.png`, 32, { ...opts, tone });
+  }
 }
 // A larger one to look at: node scripts/make-icons.mjs --preview
 if (process.argv.includes("--preview")) await render("update-preview.png", 256, { update: true, tray: true });
